@@ -12,7 +12,7 @@ AMOUNT_TESTS = 5000
 class Tester:
     @staticmethod
     def kernel(x, y):
-        return ((1/28)**3) * (28 + (1/28) * np.dot(x, y))**3
+        return (1/28) * ((1/28) * np.dot(x, y))**2
 
     def __init__(self):
         np.set_printoptions(suppress=True)
@@ -24,11 +24,11 @@ class Tester:
 
         indices_train = np.random.choice(len(y_train), AMOUNT_TRAIN_INPUTS, replace=False)
         self.inputs_train = 2*(-0.5 + (1/255) * x_train[indices_train,:])
-        self.outputs_train = 2*(0.5 - np.sign(y_train[indices_train]))
+        self.outputs_train = np.rint( 2*(0.5 - np.sign(np.absolute(-1 + y_train[indices_train]))) )
 
         indices_test = np.random.choice(len(y_test), AMOUNT_TESTS, replace=False)
         self.inputs_test = 2*(-0.5 + (1/255) * x_test[indices_test,:])
-        self.outputs_test = 2*(0.5 - np.sign(y_test[indices_test]))
+        self.outputs_test = np.rint( 2*(0.5 - np.sign(np.absolute(-1 + y_test[indices_test]))) )
 
     def print_parameters(self):
         print("KERNEL:")

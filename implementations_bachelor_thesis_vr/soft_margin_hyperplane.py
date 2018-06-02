@@ -6,7 +6,7 @@ def calculate_hyperplane(inputs, labels, c):
 
     Parameters
     ----------
-    inputs : array, shape=(n,d)
+    inputs : array, shape=(n,m)
              The matrix of training inputs. Each row is one training input.
     labels : array, shape=(n)
              The array of class labels. Each label must be either +1 or -1.
@@ -14,7 +14,7 @@ def calculate_hyperplane(inputs, labels, c):
              The value of the constant c in the dual problem for the soft margin hyperplane. Must be positive.
     Returns
     -------
-    v : array, shape=(d)
+    v : array, shape=(m)
         The normal vector of the hyperplane.
     s : float
         The shift of the hyperplane.
@@ -28,10 +28,10 @@ def calculate_hyperplane(inputs, labels, c):
     A = cvxopt.matrix(labels, tc='d').trans() # tc='d' causes conversion to double
     b = cvxopt.matrix(0.0)
 
-    sol = cvxopt.solvers.qp(G, h, P, q, A, b)
-    alpha = np.array(sol['x']).reshape( (n, ) )
+    cvxopt_solution = cvxopt.solvers.qp(G, h, P, q, A, b)
+    alpha = np.array(cvxopt_solution['x']).reshape( (n, ) )
 
-    v = calculate_normal_vector(inputs, labels, alpha)
+    v = calculate_normal_vector(inputs, labels, alpha, n)
     s = calculate_shift(inputs, labels, c, alpha, v, n)
 
     return (v, s)
@@ -57,13 +57,19 @@ def calculate_inequality_vector(n, c):
 
     return cvxopt.matrix(np_vector)
 
-def calculate_normal_vector(inputs, labels, alpha):
-    return np.dot(np.multiply(labels, alpha), inputs)
+def calculate_normal_vector(inputs, labels, alpha, n):
+    m = inputs.shape[1]
+    v = np.zeros( (m, ) )
+
+    for i in range(0, n):
+        v += alpha[i] * labels[i] * inputs[i]
+
+    return v
 
 def calculate_shift(inputs, labels, c, alpha, v, n):
     sum = 0.0
     summands = 0.0
-    precision = 10**(-6) * c
+    precision = c * 10**(-6)
 
     for i in range(n):
         if alpha[i] > precision and c - alpha[i] > precision:
