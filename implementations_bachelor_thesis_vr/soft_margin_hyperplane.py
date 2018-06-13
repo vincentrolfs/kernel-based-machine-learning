@@ -69,7 +69,7 @@ def calculate_normal_vector(inputs, labels, alpha, n):
 def calculate_shift(inputs, labels, c, alpha, v, n):
     sum = 0.0
     summands = 0.0
-    precision = c * 10**(-6)
+    precision = np.finfo(np.float32).eps
 
     for i in range(n):
         if alpha[i] > precision and c - alpha[i] > precision:

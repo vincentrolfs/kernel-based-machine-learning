@@ -1,18 +1,16 @@
 import numpy as np
+import pandas as pd
 import implementations_bachelor_thesis_vr.binary_classifier as binary_classifier
-from implementations_bachelor_thesis_vr.tests.mnist import mnist
 from terminaltables import AsciiTable
 import inspect
 
-# Image size: 28*28 = 784
-
-AMOUNT_TRAIN_INPUTS = 5000
-AMOUNT_TESTS = 5000
+TRAINING_INDEX_END = 4000
+TESTING_INDEX_END = None
 
 class Tester:
     @staticmethod
-    def kernel(x, y):
-        return (1/28) * ((1/28) * np.dot(x, y))**2
+    def kernel(x, z):
+        return np.exp(-20*np.dot(x-z, x-z))
 
     def __init__(self):
         np.set_printoptions(suppress=True)
@@ -20,31 +18,35 @@ class Tester:
 
         print("Loading data...")
 
-        x_train, y_train, x_test, y_test = mnist.load()
+        df = pd.read_csv('hmeq/hmeq_prepared.csv').sample(frac=1)
 
-        indices_train = np.random.choice(len(y_train), AMOUNT_TRAIN_INPUTS, replace=False)
-        self.inputs_train = 2*(-0.5 + (1/255) * x_train[indices_train,:])
-        self.outputs_train = np.rint( 2*(0.5 - np.sign(np.absolute(-1 + y_train[indices_train]))) )
+        x_data = df.drop('BAD', axis=1).values
+        y_data = df['BAD'].values
 
-        indices_test = np.random.choice(len(y_test), AMOUNT_TESTS, replace=False)
-        self.inputs_test = 2*(-0.5 + (1/255) * x_test[indices_test,:])
-        self.outputs_test = np.rint( 2*(0.5 - np.sign(np.absolute(-1 + y_test[indices_test]))) )
+        self.inputs_train = x_data[ : TRAINING_INDEX_END, ]
+        self.outputs_train = y_data[ : TRAINING_INDEX_END, ]
+
+        self.inputs_test = x_data[TRAINING_INDEX_END : TESTING_INDEX_END, ]
+        self.outputs_test = y_data[TRAINING_INDEX_END : TESTING_INDEX_END, ]
 
     def print_parameters(self):
-        print("KERNEL:")
+        print("Kernel:")
         print(inspect.getsource(self.kernel))
-        print("AMOUNT_TRAIN_INPUTS:", AMOUNT_TRAIN_INPUTS)
-        print("AMOUNT_TESTS:", AMOUNT_TESTS)
+        print("Training index end:", TRAINING_INDEX_END)
+        print("Testing index end:", TESTING_INDEX_END)
 
     def test_and_print(self):
         self.__calculate_classifier()
-        print("Testing...")
-        self.__print_prediction_stats()
+
+        prediction_stats, truth_stats = self.__test()
+        self.__print_test_results(prediction_stats, truth_stats)
 
     def __calculate_classifier(self):
         self.classifier = binary_classifier.make_classifier(self.inputs_train, self.outputs_train, 10, self.kernel)
 
-    def __print_prediction_stats(self):
+    def __test(self):
+        print("Testing...")
+
         # Format: ["Prediction", "Total amount guessed", "Correct guesses", "Wrong guesses"]
         prediction_stats = [[i, 0, 0, 0] for i in range(2)]
 
@@ -65,7 +67,10 @@ class Tester:
                 prediction_stats[prediction][3] += 1
                 truth_stats[truth][3] += 1
 
-        for stats_list in [prediction_stats, truth_stats]:
+        return (prediction_stats, truth_stats)
+
+    def __print_test_results(self, prediction_stats, truth_stats):
+        for stats_list in (prediction_stats, truth_stats):
             summary = [sum(x) for x in zip(*stats_list)]
             summary[0] = "All"
             stats_list.append(summary)

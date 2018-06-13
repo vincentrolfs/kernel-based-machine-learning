@@ -52,6 +52,5 @@ ax.spines['bottom'].set_position('zero')
 ax.spines['right'].set_color('none')
 ax.spines['top'].set_color('none')
 
-plt.show()
-
-#plt.savefig(r"C:\Dropbox\Dokumente\Uni\SoSe18\Bachelorarbeit\Draft\figures\test_soft_margin_hyperplane.pdf", bbox_inches='tight')
+#plt.show()
+plt.savefig(r'C:\Dropbox\Dokumente\Uni\SoSe18\Bachelorarbeit\Draft\figures\test_soft_margin_hyperplane_bad_precision.pdf', bbox_inches='tight')
