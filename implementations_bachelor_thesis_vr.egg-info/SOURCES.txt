@@ -1,5 +1,6 @@
 implementations_bachelor_thesis_vr/__init__.py
 implementations_bachelor_thesis_vr/binary_classifier.py
+implementations_bachelor_thesis_vr/omh_predictor.py
 implementations_bachelor_thesis_vr/optimal_margin_hyperplane.py
 implementations_bachelor_thesis_vr/soft_margin_hyperplane.py
 implementations_bachelor_thesis_vr.egg-info/PKG-INFO
