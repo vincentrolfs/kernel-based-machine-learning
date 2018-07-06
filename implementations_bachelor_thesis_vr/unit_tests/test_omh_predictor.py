@@ -3,37 +3,37 @@ import numpy as np
 from implementations_bachelor_thesis_vr.omh_predictor import Omh_Predictor
 
 class TestStringMethods(unittest.TestCase):
-    def test_calculate_nu_test1(self):
+    def test_calculate_eta_test1(self):
         x = np.array([[1, 2, 3, 4], [-7, 2, 4, 1]])
         y = np.array([1, -1])
         predictor = Omh_Predictor(x, y)
         predictor.tol = 10**(-3)
 
-        expected_nu = 2*np.dot(x[0], x[1]) - np.dot(x[0], x[0]) - np.dot(x[1], x[1])
-        outcome_nu = predictor._calculate_nu(0, 1)
-        self.assertAlmostEqual(outcome_nu, expected_nu)
+        expected_eta = 2*np.dot(x[0], x[1]) - np.dot(x[0], x[0]) - np.dot(x[1], x[1])
+        outcome_eta = predictor._calculate_eta(0, 1)
+        self.assertAlmostEqual(outcome_eta, expected_eta)
 
-    def test_calculate_nu_test2(self):
+    def test_calculate_eta_test2(self):
         x = np.array([[2.5, 4], [3.5, 0]])
         y = np.array([1, -1])
 
         predictor = Omh_Predictor(x, y)
         predictor.tol = 10**(-3)
 
-        expected_nu = -17
-        outcome_nu = predictor._calculate_nu(0, 1)
-        self.assertAlmostEqual(outcome_nu, expected_nu)
+        expected_eta = -17
+        outcome_eta = predictor._calculate_eta(0, 1)
+        self.assertAlmostEqual(outcome_eta, expected_eta)
 
-    def test_calculate_nu_test3(self):
+    def test_calculate_eta_test3(self):
         x = np.array([[2.5, 4. ], [2.5, 2.5]])
         y = np.array([1, 1])
 
         predictor = Omh_Predictor(x, y)
         predictor.tol = 10**(-3)
 
-        expected_nu = -2.25
-        outcome_nu = predictor._calculate_nu(0, 1)
-        self.assertAlmostEqual(outcome_nu, expected_nu, places=5)
+        expected_eta = -2.25
+        outcome_eta = predictor._calculate_eta(0, 1)
+        self.assertAlmostEqual(outcome_eta, expected_eta, places=5)
 
     def test_calculate_e_test1(self):
         x = np.array([[1, 2, 3, 4], [-7, 2, 4, 1]])
@@ -103,9 +103,9 @@ class TestStringMethods(unittest.TestCase):
 
         e_0 = predictor._calculate_e(0)
         e_1 = predictor._calculate_e(1)
-        nu = predictor._calculate_nu(0, 1)
+        eta = predictor._calculate_eta(0, 1)
 
-        expected_alpha_1 = 4 - y[1] * (e_0 - e_1)/nu
+        expected_alpha_1 = 4 - y[1] * (e_0 - e_1)/eta
         outcome_alpha_1 = predictor._calculate_new_alpha_j(0, 1)
         self.assertAlmostEqual(outcome_alpha_1, expected_alpha_1)
 
@@ -158,9 +158,9 @@ class TestStringMethods(unittest.TestCase):
 
         e_0 = predictor._calculate_e(0)
         e_1 = predictor._calculate_e(1)
-        nu = predictor._calculate_nu(0, 1)
+        eta = predictor._calculate_eta(0, 1)
 
-        expected_alpha_1 = 4 - (-1) * (e_0 - e_1)/nu
+        expected_alpha_1 = 4 - (-1) * (e_0 - e_1)/eta
         expected_alpha_0 = 7 + 1*(-1)*(4 - expected_alpha_1)
 
         expected_alpha_values = np.array([expected_alpha_0, expected_alpha_1])

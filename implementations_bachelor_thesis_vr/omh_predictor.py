@@ -4,7 +4,7 @@ import cvxopt
 
 class Omh_Predictor:
     def __init__(self, x, y):
-        """Initialise the optimal margin hyperplane predictor.
+        """Initialize the optimal margin hyperplane predictor.
 
         Parameters
         ----------
@@ -57,57 +57,111 @@ class Omh_Predictor:
 
         return np.sign(self.predict_raw(z))
 
-    def train(self, max_unchanging_iterations, tolerance = 10**(-3)):
+    def train(self, tolerance = 10**(-3)):
         """Train the optimal margin hyperplane predictor.
 
         Parameters
         ----------
-        max_unchanging_iterations : int
-            Specifies the amount of consecutive iterations in which alpha didn't change after which the training algorithm terminates
         tolerance : float
             The numerical tolerance."""
 
         self._setup_trained_parameters()
         self.tol = tolerance
-        unchanging_iterations = 0
-        i = j = 0
 
-        while unchanging_iterations < max_unchanging_iterations:
-            i, j = self._select_indices(i)
+        self._perform_training_iterations()
 
-            if j is None:
-                has_alpha_changed = False
-            else:
-                has_alpha_changed = self._optimize_pair(i, j)
+    def _perform_training_iterations(self):
+        change_occured = False
+        examine_all_i = True
 
-            if has_alpha_changed:
-                unchanging_iterations = 0
-            else:
-                unchanging_iterations += 1
+        while change_occured or examine_all_i:
+            change_occured = self._iterate_i(examine_all_i)
+            examine_all_i = (not change_occured) and (not examine_all_i)
 
-    def _select_indices(self, old_i):
-        i = (old_i + 1) % self.n
-        check_i = self.y[i]*self._calculate_e(i)
+    def _iterate_i(self, examine_all_i):
+        change_occured = False
 
-        if check_i > -self.tol and (self.alpha[i] < self.tol or check_i < self.tol):
-            return (i, None)
+        for i in self._range_with_random_start(self.n):
+            if (examine_all_i or self.alpha[i] > self.tol) and not self._check_kkt_fulfilled(i):
+                change_occured_here = self._optimize_i(i)
+                if change_occured_here: change_occured = True
 
-        j = self._randint(upper_bound=self.n, avoid=i)
-        return (i, j)
+        return change_occured
 
-    def _randint(self, upper_bound, avoid):
-        return (avoid + np.random.randint(1, upper_bound)) % upper_bound
+    def _range_with_random_start(self, length):
+        i = np.random.randint(0, length)
+        for _ in range(length):
+            yield i
+            i = (i+1) % length
+
+    def _optimize_i(self, i):
+        if self._try_j_with_largest_expected_step(i):
+            return True
+        if self._try_all_j(i, bound_check_must_be=False):
+            return True
+        if self._try_all_j(i, bound_check_must_be=True):
+            return True
+
+        return False
+
+    def _try_j_with_largest_expected_step(self, i):
+        e_i = self._calculate_e(i)
+        best_j = None
+        largest_step = 0
+
+        for j in range(self.n):
+            eta = self._calculate_eta(i, j)
+            if eta > -self.tol: continue
+
+            e_j = self._calculate_e(j)
+            step = np.abs((e_i - e_j) / eta)
+
+            if step >= largest_step:
+                best_j = j
+                largest_step = step
+
+        return self._try_optimize_pair(i, best_j)
+
+    def _try_all_j(self, i, bound_check_must_be):
+        for j in self._range_with_random_start(self.n):
+            bound_check = (self.alpha[j] < self.tol)
+
+            if bound_check == bound_check_must_be:
+                eta = self._calculate_eta(i, j)
+                if eta < -self.tol:
+                    success = self._try_optimize_pair(i, j)
+                    if success: return True
+
+        return False
+
+    def _try_optimize_pair(self, i, j):
+        if j is None:
+            return False
+        else:
+            is_progress_positive = self._optimize_pair(i, j)
+            return is_progress_positive
+
+    def _check_kkt_fulfilled(self, p):
+        indicator = self.y[p] * self._calculate_e(p)
+        if indicator < -self.tol: return False
+
+        return self.alpha[p] < self.tol or indicator < self.tol
 
     def _optimize_pair(self, i, j):
-        new_alpha_values = self._calculate_new_alpha_values(i, j)
-        has_alpha_changed = (new_alpha_values is not None)
+        new_alpha_values, sign_new_alpha_j_unclipped = self._calculate_new_alpha_values(i, j)
+        is_progress_positive = self._is_progress_positive(i, j, new_alpha_values)
 
-        if has_alpha_changed:
-            self._update_s(i, j, new_alpha_values)
-            self._update_v(i, j, new_alpha_values)
-            self._update_alpha(i, j, new_alpha_values)
+        self._update_s(i, j, new_alpha_values, sign_new_alpha_j_unclipped)
+        self._update_v(i, j, new_alpha_values)
+        self._update_alpha(i, j, new_alpha_values)
 
-        return has_alpha_changed
+        assert self._check_kkt_fulfilled(i)
+        assert self._check_kkt_fulfilled(j)
+
+        return is_progress_positive
+
+    def _is_progress_positive(self, i, j, new_alpha_values):
+        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol or np.abs(self.alpha[j] - new_alpha_values[1]) > self.tol
 
     def _update_v(self, i, j, new_alpha_values):
         self.v = (
@@ -116,42 +170,45 @@ class Omh_Predictor:
             + self.y[j]*self.x[j]*(new_alpha_values[1] - self.alpha[j]) # Kann noch vereinfacht werden
         )
 
-    def _update_s(self, i, j, new_alpha_values):
+    def _update_s(self, i, j, new_alpha_values, sign_new_alpha_j_unclipped):
         if new_alpha_values[0] > self.tol:
-            e_i = self._calculate_e(i)
-            self.s = self.s - e_i + self.y[j]*(new_alpha_values[1] - self.alpha[j])*np.dot(self.x[i], self.x[i] - self.x[j])
+            self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
         elif new_alpha_values[1] > self.tol:
-            e_j = self._calculate_e(j)
-            self.s = self.s - e_j + self.y[j]*(new_alpha_values[1] - self.alpha[j])*np.dot(self.x[j], self.x[i] - self.x[j])
+            self.s = self._calculate_new_s_p(new_alpha_values, i, j, j)
+        elif self.y[i] != self.y[j]:
+            self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
+        elif sign_new_alpha_j_unclipped <= 0:
+            self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
+        else:
+            self.s = self._calculate_new_s_p(new_alpha_values, i, j, j)
+
+    def _calculate_new_s_p(self, new_alpha_values, i, j, p):
+        e_p = self._calculate_e(p)
+        return self.s - e_p + self.y[j]*(new_alpha_values[1] - self.alpha[j])*np.dot(self.x[p], self.x[i] - self.x[j])
 
     def _update_alpha(self, i, j, new_alpha_values):
         self.alpha[i] = new_alpha_values[0]
         self.alpha[j] = new_alpha_values[1]
 
     def _calculate_new_alpha_values(self, i, j):
-        new_alpha_j = self._calculate_new_alpha_j(i, j)
-        if new_alpha_j is None: return None
+        new_alpha_j, sign_new_alpha_j_unclipped = self._calculate_new_alpha_j(i, j)
 
         new_alpha_values = np.empty(2)
         new_alpha_values[0] = self.alpha[i] + self.y[i] * self.y[j] * (self.alpha[j] - new_alpha_j)
         new_alpha_values[1] = new_alpha_j
 
-        return new_alpha_values
+        return new_alpha_values, sign_new_alpha_j_unclipped
 
     def _calculate_new_alpha_j(self, i, j):
-        nu = self._calculate_nu(i, j)
-        if nu >= -self.tol: return None
+        eta = self._calculate_eta(i, j)
 
         e_i = self._calculate_e(i)
         e_j = self._calculate_e(j)
 
-        new_alpha_j_unclipped = self.alpha[j] - self.y[j]*(e_i - e_j)/nu
+        new_alpha_j_unclipped = self.alpha[j] - self.y[j]*(e_i - e_j)/eta
         new_alpha_j = self._clip_alpha_j(i, j, new_alpha_j_unclipped)
 
-        delta = np.abs(new_alpha_j - self.alpha[j])
-
-        if delta <= self.tol: return None
-        else: return new_alpha_j
+        return (new_alpha_j, np.sign(new_alpha_j_unclipped))
 
     def _clip_alpha_j(self, i, j, alpha_j_unclipped):
         if self.y[i] != self.y[j]:
@@ -160,9 +217,9 @@ class Omh_Predictor:
             if alpha_j_unclipped <= 0: return 0
             return min(self.alpha[j] + self.alpha[i], alpha_j_unclipped)
 
-    def _calculate_nu(self, i, j):
-        d = self.x[i] - self.x[j]
+    def _calculate_eta(self, p, q):
+        d = self.x[p] - self.x[q]
         return -np.dot(d, d)
 
-    def _calculate_e(self, i):
-        return self.predict_raw(self.x[i]) - self.y[i]
+    def _calculate_e(self, p):
+        return self.predict_raw(self.x[p]) - self.y[p]

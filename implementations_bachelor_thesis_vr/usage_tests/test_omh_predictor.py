@@ -26,7 +26,7 @@ all_inputs = np.concatenate( (red_inputs, green_inputs) )
 labels = np.array([1 for _ in red_inputs] + [-1 for _ in green_inputs])
 
 predictor = Omh_Predictor(all_inputs, labels)
-predictor.train(max_unchanging_iterations = 1000, tolerance = 10**(-5))
+predictor.train(tolerance = 10**(-5))
 v = predictor.v
 s = predictor.s
 
