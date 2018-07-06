@@ -94,6 +94,12 @@ class Omh_Predictor:
             yield i
             i = (i+1) % length
 
+    def _check_kkt_fulfilled(self, p):
+        indicator = self.y[p] * self._calculate_e(p)
+        if indicator < -self.tol: return False
+
+        return self.alpha[p] < self.tol or indicator < self.tol
+
     def _optimize_i(self, i):
         if self._try_j_with_largest_expected_step(i):
             return True
@@ -140,12 +146,6 @@ class Omh_Predictor:
         else:
             is_progress_positive = self._optimize_pair(i, j)
             return is_progress_positive
-
-    def _check_kkt_fulfilled(self, p):
-        indicator = self.y[p] * self._calculate_e(p)
-        if indicator < -self.tol: return False
-
-        return self.alpha[p] < self.tol or indicator < self.tol
 
     def _optimize_pair(self, i, j):
         new_alpha_values, sign_new_alpha_j_unclipped = self._calculate_new_alpha_values(i, j)
