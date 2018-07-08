@@ -164,11 +164,7 @@ class Omh_Predictor:
         return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol or np.abs(self.alpha[j] - new_alpha_values[1]) > self.tol
 
     def _update_v(self, i, j, new_alpha_values):
-        self.v = (
-              self.v
-            + self.y[i]*self.x[i]*(new_alpha_values[0] - self.alpha[i])
-            + self.y[j]*self.x[j]*(new_alpha_values[1] - self.alpha[j]) # Kann noch vereinfacht werden
-        )
+        self.v = self.v - self.y[j]*(new_alpha_values[1] - self.alpha[j])*(self.x[i] - self.x[j])
 
     def _update_s(self, i, j, new_alpha_values, sign_new_alpha_j_unclipped):
         if new_alpha_values[0] > self.tol:
