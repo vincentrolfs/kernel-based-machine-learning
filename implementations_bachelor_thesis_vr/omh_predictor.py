@@ -71,22 +71,22 @@ class Omh_Predictor:
         self._perform_training_iterations()
 
     def _perform_training_iterations(self):
-        change_occured = False
+        made_positive_progress = False
         examine_all_i = True
 
-        while change_occured or examine_all_i:
-            change_occured = self._iterate_i(examine_all_i)
-            examine_all_i = (not change_occured) and (not examine_all_i)
+        while made_positive_progress or examine_all_i:
+            made_positive_progress = self._iterate_i(examine_all_i)
+            examine_all_i = (not made_positive_progress) and (not examine_all_i)
 
     def _iterate_i(self, examine_all_i):
-        change_occured = False
+        made_positive_progress = False
 
         for i in self._range_with_random_start(self.n):
             if (examine_all_i or self.alpha[i] > self.tol) and not self._check_kkt_fulfilled(i):
-                change_occured_here = self._optimize_i(i)
-                if change_occured_here: change_occured = True
+                is_progress_positive = self._optimize_i(i)
+                if is_progress_positive: made_positive_progress = True
 
-        return change_occured
+        return made_positive_progress
 
     def _range_with_random_start(self, length):
         i = np.random.randint(0, length)
@@ -135,8 +135,8 @@ class Omh_Predictor:
             if bound_check == bound_check_must_be:
                 eta = self._calculate_eta(i, j)
                 if eta < -self.tol:
-                    success = self._try_optimize_pair(i, j)
-                    if success: return True
+                    is_progress_positive = self._try_optimize_pair(i, j)
+                    if is_progress_positive: return True
 
         return False
 
