@@ -148,10 +148,10 @@ class Omh_Predictor:
             return is_progress_positive
 
     def _optimize_pair(self, i, j):
-        new_alpha_values, sign_new_alpha_j_unclipped = self._calculate_new_alpha_values(i, j)
+        new_alpha_values = self._calculate_new_alpha_values(i, j)
         is_progress_positive = self._is_progress_positive(i, j, new_alpha_values)
 
-        self._update_s(i, j, new_alpha_values, sign_new_alpha_j_unclipped)
+        self._update_s(i, j, new_alpha_values)
         self._update_v(i, j, new_alpha_values)
         self._update_alpha(i, j, new_alpha_values)
 
@@ -166,17 +166,21 @@ class Omh_Predictor:
     def _update_v(self, i, j, new_alpha_values):
         self.v = self.v - self.y[j]*(new_alpha_values[1] - self.alpha[j])*(self.x[i] - self.x[j])
 
-    def _update_s(self, i, j, new_alpha_values, sign_new_alpha_j_unclipped):
+    def _update_s(self, i, j, new_alpha_values):
         if new_alpha_values[0] > self.tol:
             self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
         elif new_alpha_values[1] > self.tol:
             self.s = self._calculate_new_s_p(new_alpha_values, i, j, j)
         elif self.y[i] != self.y[j]:
             self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
-        elif sign_new_alpha_j_unclipped <= 0:
-            self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
         else:
-            self.s = self._calculate_new_s_p(new_alpha_values, i, j, j)
+            new_s_i = self._calculate_new_s_p(new_alpha_values, i, j, i)
+            new_s_j = self._calculate_new_s_p(new_alpha_values, i, j, j)
+
+            if self.y[i] == 1:
+                self.s = max(new_s_i, new_s_j)
+            else:
+                self.s = min(new_s_i, new_s_j)
 
     def _calculate_new_s_p(self, new_alpha_values, i, j, p):
         e_p = self._calculate_e(p)
@@ -187,13 +191,13 @@ class Omh_Predictor:
         self.alpha[j] = new_alpha_values[1]
 
     def _calculate_new_alpha_values(self, i, j):
-        new_alpha_j, sign_new_alpha_j_unclipped = self._calculate_new_alpha_j(i, j)
+        new_alpha_j = self._calculate_new_alpha_j(i, j)
 
         new_alpha_values = np.empty(2)
         new_alpha_values[0] = self.alpha[i] + self.y[i] * self.y[j] * (self.alpha[j] - new_alpha_j)
         new_alpha_values[1] = new_alpha_j
 
-        return new_alpha_values, sign_new_alpha_j_unclipped
+        return new_alpha_values
 
     def _calculate_new_alpha_j(self, i, j):
         eta = self._calculate_eta(i, j)
@@ -204,14 +208,14 @@ class Omh_Predictor:
         new_alpha_j_unclipped = self.alpha[j] - self.y[j]*(e_i - e_j)/eta
         new_alpha_j = self._clip_alpha_j(i, j, new_alpha_j_unclipped)
 
-        return (new_alpha_j, np.sign(new_alpha_j_unclipped))
+        return new_alpha_j
 
     def _clip_alpha_j(self, i, j, alpha_j_unclipped):
-        if self.y[i] != self.y[j]:
-            return max(0, self.alpha[j] - self.alpha[i], alpha_j_unclipped)
-        else:
+        if self.y[i] == self.y[j]:
             if alpha_j_unclipped <= 0: return 0
             return min(self.alpha[j] + self.alpha[i], alpha_j_unclipped)
+        else:
+            return max(0, self.alpha[j] - self.alpha[i], alpha_j_unclipped)
 
     def _calculate_eta(self, p, q):
         d = self.x[p] - self.x[q]
