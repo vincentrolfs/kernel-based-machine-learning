@@ -2,9 +2,9 @@ import numpy as np
 import cvxopt
 
 
-class Omh_Predictor:
+class Smh_Predictor:
     def __init__(self, x, y):
-        """Initialize the optimal margin hyperplane predictor.
+        """Initialize the soft margin hyperplane predictor.
 
         Parameters
         ----------
@@ -21,6 +21,7 @@ class Omh_Predictor:
         self._setup_trained_parameters()
 
         self.tol = 0
+        self.C = 10
 
         assert len(self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels is not the same"
         assert set(self.y) == {1, -1}, "Invalid arguments: Each label must be either +1 or -1. At least one example from each class muste be present."
@@ -58,16 +59,21 @@ class Omh_Predictor:
 
         return np.sign(self.predict_raw(z))
 
-    def train(self, tolerance = 10**(-3)):
+    def train(self, C, tolerance = 10**(-3)):
         """Train the optimal margin hyperplane predictor.
 
         Parameters
-        ----------
+        ---------
+        C : float
+            The constant bounding the alpha values from above. Must be positive.
         tolerance : float
             The numerical tolerance."""
 
+        assert C > 0, "Invalid arguments: C must be positive"
+
         self._setup_trained_parameters()
         self.tol = tolerance
+        self.C = C
 
         self._perform_training_iterations()
 
@@ -83,23 +89,31 @@ class Omh_Predictor:
         made_positive_progress = False
 
         for i in self._range_with_random_start(self.n):
-            if (examine_all_i or self.alpha[i] > self.tol) and not self._check_kkt_fulfilled(i):
+            if (not self._is_at_bounds(self.alpha[i]) or examine_all_i) and not self._check_kkt_fulfilled(i):
                 is_progress_positive = self._optimize_i(i)
                 if is_progress_positive: made_positive_progress = True
 
         return made_positive_progress
 
-    def _range_with_random_start(self, length):
+    @staticmethod
+    def _range_with_random_start(length):
         i = np.random.randint(0, length)
         for _ in range(length):
             yield i
             i = (i+1) % length
 
+    def _is_at_bounds(self, alpha_value):
+        return alpha_value < self.tol or self.C - alpha_value < self.tol
+
     def _check_kkt_fulfilled(self, p):
         indicator = self.y[p] * self._calculate_e(p)
-        if indicator < -self.tol: return False
 
-        return self.alpha[p] < self.tol or indicator < self.tol
+        if self.alpha[p] < self.tol:
+            return indicator > - self.tol
+        elif self.C - self.alpha[p] < self.tol:
+            return indicator < self.tol
+        else:
+            return np.abs(indicator) < self.tol
 
     def _optimize_i(self, i):
         if self._try_j_with_largest_expected_step(i):
@@ -131,7 +145,7 @@ class Omh_Predictor:
 
     def _try_all_j(self, i, bound_check_must_be):
         for j in self._range_with_random_start(self.n):
-            bound_check = (self.alpha[j] < self.tol)
+            bound_check = self._is_at_bounds(self.alpha[j])
 
             if bound_check == bound_check_must_be:
                 eta = self._calculate_eta(i, j)
@@ -168,17 +182,24 @@ class Omh_Predictor:
         self.v = self.v - self.y[j]*(new_alpha_values[1] - self.alpha[j])*(self.x[i] - self.x[j])
 
     def _update_s(self, i, j, new_alpha_values):
-        if new_alpha_values[0] > self.tol:
+        if not self._is_at_bounds(new_alpha_values[0]):
             self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
-        elif new_alpha_values[1] > self.tol:
+        elif not self._is_at_bounds(new_alpha_values[1]):
             self.s = self._calculate_new_s_p(new_alpha_values, i, j, j)
-        elif self.y[i] != self.y[j]:
-            self.s = self._calculate_new_s_p(new_alpha_values, i, j, i)
         else:
-            new_s_i = self._calculate_new_s_p(new_alpha_values, i, j, i)
+            self._update_s_boundary_case(i, j, new_alpha_values)
+
+    def _update_s_boundary_case(self, i, j, new_alpha_values):
+        delta_i = self._calculate_delta_p(new_alpha_values[0], i)
+        delta_j = self._calculate_delta_p(new_alpha_values[1], j)
+        new_s_i = self._calculate_new_s_p(new_alpha_values, i, j, i)
+
+        if delta_i != delta_j:
+            self.s = new_s_i
+        else:
             new_s_j = self._calculate_new_s_p(new_alpha_values, i, j, j)
 
-            if self.y[i] == 1:
+            if delta_i == 1:
                 self.s = max(new_s_i, new_s_j)
             else:
                 self.s = min(new_s_i, new_s_j)
@@ -186,6 +207,10 @@ class Omh_Predictor:
     def _calculate_new_s_p(self, new_alpha_values, i, j, p):
         e_p = self._calculate_e(p)
         return self.s - e_p + self.y[j]*(new_alpha_values[1] - self.alpha[j])*np.dot(self.x[p], self.x[i] - self.x[j])
+
+    def _calculate_delta_p(self, new_alpha_value, p):
+        lambda_p = 1 if new_alpha_value < self.tol else -1
+        return self.y[p] * lambda_p
 
     def _update_alpha(self, i, j, new_alpha_values):
         self.alpha[i] = new_alpha_values[0]
@@ -212,16 +237,21 @@ class Omh_Predictor:
         return new_alpha_j
 
     def _clip_alpha_j(self, i, j, alpha_j_unclipped):
-        if self.y[i] == self.y[j]:
-            L = 0
-            R = self.alpha[i] + self.alpha[j]
-        else:
-            L = max(0, self.alpha[j] - self.alpha[i])
-            R = np.inf
+        l, r = self._calculate_l_r(i, j)
 
-        if alpha_j_unclipped < L: return L
-        elif alpha_j_unclipped > R: return R
+        if alpha_j_unclipped < l: return l
+        elif alpha_j_unclipped > r: return r
         else: return alpha_j_unclipped
+
+    def _calculate_l_r(self, i, j):
+        if self.y[i] == self.y[j]:
+            l = max(0, self.alpha[i] + self.alpha[j] - self.C)
+            r = min(self.C, self.alpha[i] + self.alpha[j])
+        else:
+            l = max(0, self.alpha[j] - self.alpha[i])
+            r = min(self.C, self.alpha[j] - self.alpha[i] + self.C)
+
+        return l, r
 
     def _calculate_eta(self, p, q):
         d = self.x[p] - self.x[q]
