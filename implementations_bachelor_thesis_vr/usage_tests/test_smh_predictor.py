@@ -5,10 +5,12 @@ from implementations_bachelor_thesis_vr.smh_predictor import Smh_Predictor
 
 np.set_printoptions(suppress=True)
 
+
 def plot_inputs(ax, inputs, style):
     inputs_x = [input[0] for input in inputs]
     inputs_y = [input[1] for input in inputs]
     ax.plot(inputs_x, inputs_y, style)
+
 
 red_inputs = np.array([
     [-3, 1.5],
@@ -30,14 +32,11 @@ all_inputs = np.concatenate((red_inputs, green_inputs))
 labels = np.array([1 for _ in red_inputs] + [-1 for _ in green_inputs])
 
 predictor = Smh_Predictor(all_inputs, labels)
-predictor.train(C=10, tolerance=10**(-5))
-alpha = predictor.alpha
+predictor.train(C=10, tolerance=10 ** (-5))
+predictor.print_diagnostics()
+
 v = predictor.v
 s = predictor.s
-
-print("alpha = ", alpha)
-print("v = ", v)
-print("s = ", s)
 
 fig, ax = plt.subplots()
 

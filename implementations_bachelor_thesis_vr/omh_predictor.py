@@ -1,5 +1,4 @@
 import numpy as np
-import cvxopt
 
 
 class Omh_Predictor:
@@ -22,8 +21,10 @@ class Omh_Predictor:
 
         self.tol = 0
 
-        assert len(self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels is not the same"
-        assert set(self.y) == {1, -1}, "Invalid arguments: Each label must be either +1 or -1. At least one example from each class muste be present."
+        assert len(
+            self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels is not the same"
+        assert set(self.y) == {1,
+                               -1}, "Invalid arguments: Each label must be either +1 or -1. At least one example from each class muste be present."
 
     def _setup_trained_parameters(self):
         self.alpha = np.zeros(self.n)
@@ -58,7 +59,7 @@ class Omh_Predictor:
 
         return np.sign(self.predict_raw(z))
 
-    def train(self, tolerance = 10**(-3)):
+    def train(self, tolerance=10 ** (-3)):
         """Train the optimal margin hyperplane predictor.
 
         Parameters
@@ -70,6 +71,40 @@ class Omh_Predictor:
         self.tol = tolerance
 
         self._perform_training_iterations()
+
+    def print_diagnostics(self):
+        """Print diagnostics which can be used to determine if the algorithm works correctly."""
+
+        from terminaltables import AsciiTable
+
+        sum_v = 0
+        sum_0 = 0
+        table_data = [["p", "alpha_p", "y_p(<x_p, v> + s)", "alpha_p >= 0 (within tolerance)?",
+                       "KKT-conditions fulfilled (within tolerance)?"]]
+
+        for p in range(self.n):
+            sum_v += self.alpha[p] * self.y[p] * self.x[p]
+            sum_0 += self.alpha[p] * self.y[p]
+            table_data.append(
+                [p, self.alpha[p], self.y[p] * (np.dot(self.x[p], self.v) + self.s), self.alpha[p] >= -self.tol,
+                 self._check_kkt_fulfilled(p)])
+
+        print("Parameters:")
+        print("  tolerance =", self.tol)
+        print("Computed values:")
+        print("  v =", self.v)
+        print("  s =", self.s)
+        print("  alpha =", self.alpha)
+        print("Check 1: This should be zero (within tolerance):")
+        print("  sum_p of alpha_p y_p =", sum_0)
+        print("  Check", "passed!" if np.abs(sum_0) < self.tol else "failed!")
+        print("Check 2: These should be equal (within tolerance):")
+        print("  sum of alpha_p y_p x_p = ", sum_v)
+        print("  v = ", self.v)
+        print("  Check", "passed!" if np.max(np.abs(sum_v - self.v)) < self.tol else "failed!")
+
+        table = AsciiTable(table_data)
+        print(table.table)
 
     def _perform_training_iterations(self):
         made_positive_progress = False
@@ -89,11 +124,12 @@ class Omh_Predictor:
 
         return made_positive_progress
 
-    def _range_with_random_start(self, length):
+    @staticmethod
+    def _range_with_random_start(length):
         i = np.random.randint(0, length)
         for _ in range(length):
             yield i
-            i = (i+1) % length
+            i = (i + 1) % length
 
     def _check_kkt_fulfilled(self, p):
         indicator = self.y[p] * self._calculate_e(p)
@@ -162,10 +198,11 @@ class Omh_Predictor:
         return is_progress_positive
 
     def _is_progress_positive(self, i, j, new_alpha_values):
-        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol or np.abs(self.alpha[j] - new_alpha_values[1]) > self.tol
+        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol ** 2 or np.abs(
+            self.alpha[j] - new_alpha_values[1]) > self.tol ** 2
 
     def _update_v(self, i, j, new_alpha_values):
-        self.v = self.v - self.y[j]*(new_alpha_values[1] - self.alpha[j])*(self.x[i] - self.x[j])
+        self.v = self.v - self.y[j] * (new_alpha_values[1] - self.alpha[j]) * (self.x[i] - self.x[j])
 
     def _update_s(self, i, j, new_alpha_values):
         if new_alpha_values[0] > self.tol:
@@ -185,7 +222,8 @@ class Omh_Predictor:
 
     def _calculate_new_s_p(self, new_alpha_values, i, j, p):
         e_p = self._calculate_e(p)
-        return self.s - e_p + self.y[j]*(new_alpha_values[1] - self.alpha[j])*np.dot(self.x[p], self.x[i] - self.x[j])
+        return self.s - e_p + self.y[j] * (new_alpha_values[1] - self.alpha[j]) * np.dot(self.x[p],
+                                                                                         self.x[i] - self.x[j])
 
     def _update_alpha(self, i, j, new_alpha_values):
         self.alpha[i] = new_alpha_values[0]
@@ -206,22 +244,30 @@ class Omh_Predictor:
         e_i = self._calculate_e(i)
         e_j = self._calculate_e(j)
 
-        new_alpha_j_unclipped = self.alpha[j] - self.y[j]*(e_i - e_j)/eta
+        new_alpha_j_unclipped = self.alpha[j] - self.y[j] * (e_i - e_j) / eta
         new_alpha_j = self._clip_alpha_j(i, j, new_alpha_j_unclipped)
 
         return new_alpha_j
 
     def _clip_alpha_j(self, i, j, alpha_j_unclipped):
-        if self.y[i] == self.y[j]:
-            L = 0
-            R = self.alpha[i] + self.alpha[j]
-        else:
-            L = max(0, self.alpha[j] - self.alpha[i])
-            R = np.inf
+        l, r = self._calculate_l_r(i, j)
 
-        if alpha_j_unclipped < L: return L
-        elif alpha_j_unclipped > R: return R
-        else: return alpha_j_unclipped
+        if alpha_j_unclipped < l:
+            return l
+        elif alpha_j_unclipped > r:
+            return r
+        else:
+            return alpha_j_unclipped
+
+    def _calculate_l_r(self, i, j):
+        if self.y[i] == self.y[j]:
+            l = 0
+            r = self.alpha[i] + self.alpha[j]
+        else:
+            l = max(0, self.alpha[j] - self.alpha[i])
+            r = np.inf
+
+        return l, r
 
     def _calculate_eta(self, p, q):
         d = self.x[p] - self.x[q]
