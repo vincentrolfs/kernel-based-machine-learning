@@ -1,5 +1,8 @@
-*\__pycache__\*
-*/__pycache__/*
-*\mnist\*
 *.pyc
+*.cpython-36.pyc
+*\__pycache__\*
+*__pycache__\*
+*/__pycache__/*
+*__pycache__/*
+*\mnist\*
 .idea/*

@@ -73,7 +73,10 @@ class Omh_Predictor:
         self._perform_training_iterations()
 
     def print_diagnostics(self):
-        """Print diagnostics which can be used to determine if the algorithm works correctly."""
+        """
+        Print diagnostics which can be used to determine if the algorithm works correctly.
+        Requires the package 'terminaltables'.
+        """
 
         from terminaltables import AsciiTable
 
