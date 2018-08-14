@@ -19,9 +19,10 @@ class Svm_Predictor:
         self.n, self.m = self.x.shape
 
         self.alpha = None
-        self.v = None
         self.s = None
         self.e_cache = None
+        self.kernel = None
+        self.kernel_cache = None
         self.C = None
         self.tol = None
         self.max_iterations = None
@@ -34,9 +35,9 @@ class Svm_Predictor:
 
     def _setup_trained_parameters(self):
         self.alpha = np.zeros(self.n)
-        self.v = np.zeros(self.m)
         self.s = 0
         self.e_cache = np.zeros(self.n)
+        self.kernel_cache = {}
 
     def predict_raw(self, z):
         """Returns the output of the "inner" decision function, i.e. the decision function without taking the sign.
@@ -50,7 +51,12 @@ class Svm_Predictor:
         ----------
         Value of z applied to the inner decision function."""
 
-        return np.dot(z, self.v) + self.s
+        result = self.s
+
+        for p in range(self.n):
+            result += self.alpha[p] * self.y[p] * self.kernel(z, self.x[p])
+
+        return result
 
     def predict_label(self, z):
         """Returns the output of the decision function.
@@ -74,16 +80,14 @@ class Svm_Predictor:
 
         from terminaltables import AsciiTable
 
-        sum_v = 0
         sum_0 = 0
-        table_data = [["p", "alpha_p", "y_p(<x_p, v> + s)", "0 <= alpha_p <= C (within tolerance)?",
+        table_data = [["p", "alpha_p", "y_p((sum alpha_p y_p k(x_p, v)) + s)", "0 <= alpha_p <= C (within tolerance)?",
                        "KKT-conditions fulfilled (within tolerance)?"]]
 
         for p in range(self.n):
-            sum_v += self.alpha[p] * self.y[p] * self.x[p]
             sum_0 += self.alpha[p] * self.y[p]
             table_data.append(
-                [p, self.alpha[p], self.y[p] * (np.dot(self.x[p], self.v) + self.s),
+                [p, self.alpha[p], self.y[p] * self.predict_raw(self.x[p]),
                  -self.tol <= self.alpha[p] <= self.C + self.tol,
                  self._check_kkt_fulfilled(p)])
 
@@ -91,25 +95,22 @@ class Svm_Predictor:
         print("  C =", self.C)
         print("  tolerance =", self.tol)
         print("Computed values:")
-        print("  v =", self.v)
         print("  s =", self.s)
         print("  alpha =", self.alpha)
         print("Check 1: This should be zero (within tolerance):")
         print("  sum_p of alpha_p y_p =", sum_0)
         print("  Check", "passed!" if np.abs(sum_0) < self.tol else "failed!")
-        print("Check 2: These should be equal (within tolerance):")
-        print("  sum of alpha_p y_p x_p = ", sum_v)
-        print("  v = ", self.v)
-        print("  Check", "passed!" if np.max(np.abs(sum_v - self.v)) < self.tol else "failed!")
 
         table = AsciiTable(table_data)
         print(table.table)
 
-    def train(self, C, tolerance=10 ** (-3), max_iterations=60, warmup_iterations=10):
+    def train(self, kernel, C, tolerance=10 ** (-3), max_iterations=60, warmup_iterations=10):
         """Train the optimal margin hyperplane predictor.
 
         Parameters
         ---------
+        kernel: function
+            The kernel function. Must take two arguments which are arrays of shape (m,) and return a floating point value
         C : float
             The constant bounding the alpha values from above. Must be positive.
         tolerance : float
@@ -125,6 +126,7 @@ class Svm_Predictor:
         assert C > 0, "Invalid arguments: C must be positive"
 
         self._setup_trained_parameters()
+        self.kernel = kernel
         self.C = C
         self.tol = tolerance
         self.max_iterations = max_iterations
@@ -223,11 +225,11 @@ class Svm_Predictor:
         new_alpha_values = self._calculate_new_alpha_values(i, j, eta)
         is_progress_positive = self._is_progress_positive(i, j, new_alpha_values)
 
-        old_s, old_v = self.s, self.v
+        old_s = self.s
+        old_alpha_j = self.alpha[j]
         self._update_s(i, j, new_alpha_values)
-        self._update_v(i, j, new_alpha_values)
         self._update_alpha(i, j, new_alpha_values)
-        self._update_e_cache(i, j, old_v, old_s)
+        self._update_e_cache(i, j, old_s, old_alpha_j)
 
         return is_progress_positive
 
@@ -237,9 +239,6 @@ class Svm_Predictor:
 
         return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol or np.abs(
             self.alpha[j] - new_alpha_values[1]) > self.tol
-
-    def _update_v(self, i, j, new_alpha_values):
-        self.v = self.v - self.y[j] * (new_alpha_values[1] - self.alpha[j]) * (self.x[i] - self.x[j])
 
     def _update_s(self, i, j, new_alpha_values):
         if not self._is_at_bounds(new_alpha_values[0]):
@@ -266,8 +265,8 @@ class Svm_Predictor:
 
     def _calculate_new_s_p(self, new_alpha_values, i, j, p):
         e_p = self._calculate_e(p)
-        return self.s - e_p + self.y[j] * (new_alpha_values[1] - self.alpha[j]) * np.dot(self.x[p],
-                                                                                         self.x[i] - self.x[j])
+        return self.s - e_p + self.y[j] * (new_alpha_values[1] - self.alpha[j]) * (
+                self._calculate_kernel(p, i) - self._calculate_kernel(p, j))
 
     def _calculate_delta_p(self, new_alpha_value, p):
         lambda_p = 1 if new_alpha_value < self.tol else -1
@@ -315,14 +314,16 @@ class Svm_Predictor:
 
         return l, r
 
-    def _update_e_cache(self, i, j, old_v, old_s):
+    def _update_e_cache(self, i, j, old_s, old_alpha_j):
         for p in range(self.n):
             if self._is_at_bounds(self.alpha[p]):
                 continue
             elif p == i or p == j:
                 self.e_cache[p] = 0
             else:
-                self.e_cache[p] += np.dot(self.x[p], self.v - old_v) + self.s - old_s
+                self.e_cache[p] += - self.y[j] * (self.alpha[j] - old_alpha_j) * (
+                        self._calculate_kernel(p, i) - self._calculate_kernel(p, j)
+                ) + self.s - old_s
 
     def _calculate_e(self, p):
         if self._is_at_bounds(self.alpha[p]):
@@ -331,8 +332,18 @@ class Svm_Predictor:
             return self.e_cache[p]
 
     def _calculate_eta(self, p, q):
-        d = self.x[p] - self.x[q]
-        return -np.dot(d, d)
+        return 2*self._calculate_kernel(p, q) - self._calculate_kernel(p, p) - self._calculate_kernel(q, q)
+
+    def _calculate_kernel(self, p, q):
+        if p > q:
+            tupel = (p, q)
+        else:
+            tupel = (q, p)
+
+        if not (tupel in self.kernel_cache):
+            self.kernel_cache[tupel] = self.kernel(self.x[p], self.x[q])
+
+        return self.kernel_cache[tupel]
 
     @staticmethod
     def _range_with_random_start(length):

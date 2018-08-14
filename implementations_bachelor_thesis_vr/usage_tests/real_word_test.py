@@ -47,10 +47,10 @@ class Tester:
         pr = cProfile.Profile()
         pr.enable()
         self.classifier = Svm_Predictor(self.inputs_train, self.outputs_train)
-        self.classifier.train(C=10, max_iterations=200, warmup_iterations=0)
+        self.classifier.train(kernel=self.kernel, C=10, max_iterations=5, warmup_iterations=0)
         pr.disable()
         pr.print_stats(sort="tottime")
-        #self.classifier.print_diagnostics()
+        self.classifier.print_diagnostics()
 
     def __test(self):
         print("Testing...")
