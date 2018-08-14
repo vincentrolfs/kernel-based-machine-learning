@@ -17,10 +17,12 @@ class Smh_Predictor:
         self.y = y
 
         self.n, self.m = self.x.shape
-        self._setup_trained_parameters()
 
-        self.tol = 0
-        self.C = 10
+        self.alpha = None
+        self.v = None
+        self.s = None
+        self.tol = None
+        self.C = None
 
         assert len(self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels" \
                                       "is not the same"
@@ -59,24 +61,6 @@ class Smh_Predictor:
         Value of z applied to the decision function."""
 
         return np.sign(self.predict_raw(z))
-
-    def train(self, C, tolerance=10 ** (-3)):
-        """Train the optimal margin hyperplane predictor.
-
-        Parameters
-        ---------
-        C : float
-            The constant bounding the alpha values from above. Must be positive.
-        tolerance : float
-            The numerical tolerance."""
-
-        assert C > 0, "Invalid arguments: C must be positive"
-
-        self._setup_trained_parameters()
-        self.tol = tolerance
-        self.C = C
-
-        self._perform_training_iterations()
 
     def print_diagnostics(self):
         """
@@ -117,6 +101,24 @@ class Smh_Predictor:
         table = AsciiTable(table_data)
         print(table.table)
 
+    def train(self, C, tolerance=10 ** (-3)):
+        """Train the optimal margin hyperplane predictor.
+
+        Parameters
+        ---------
+        C : float
+            The constant bounding the alpha values from above. Must be positive.
+        tolerance : float
+            The numerical tolerance."""
+
+        assert C > 0, "Invalid arguments: C must be positive"
+
+        self._setup_trained_parameters()
+        self.tol = tolerance
+        self.C = C
+
+        self._perform_training_iterations()
+
     def _perform_training_iterations(self):
         made_positive_progress = False
         examine_all_i = True
@@ -136,13 +138,6 @@ class Smh_Predictor:
                     made_positive_progress = True
 
         return made_positive_progress
-
-    @staticmethod
-    def _range_with_random_start(length):
-        i = np.random.randint(0, length)
-        for _ in range(length):
-            yield i
-            i = (i + 1) % length
 
     def _is_at_bounds(self, alpha_value):
         return alpha_value < self.tol or self.C - alpha_value < self.tol
@@ -306,3 +301,10 @@ class Smh_Predictor:
 
     def _calculate_e(self, p):
         return self.predict_raw(self.x[p]) - self.y[p]
+
+    @staticmethod
+    def _range_with_random_start(length):
+        i = np.random.randint(0, length)
+        for _ in range(length):
+            yield i
+            i = (i + 1) % length

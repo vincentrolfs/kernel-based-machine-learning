@@ -17,9 +17,11 @@ class Omh_Predictor:
         self.y = y
 
         self.n, self.m = self.x.shape
-        self._setup_trained_parameters()
 
-        self.tol = 0
+        self.alpha = None
+        self.v = None
+        self.s = None
+        self.tol = None
 
         assert len(
             self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels is not the same"
@@ -59,19 +61,6 @@ class Omh_Predictor:
 
         return np.sign(self.predict_raw(z))
 
-    def train(self, tolerance=10 ** (-3)):
-        """Train the optimal margin hyperplane predictor.
-
-        Parameters
-        ----------
-        tolerance : float
-            The numerical tolerance."""
-
-        self._setup_trained_parameters()
-        self.tol = tolerance
-
-        self._perform_training_iterations()
-
     def print_diagnostics(self):
         """
         Print diagnostics which can be used to determine if the algorithm works correctly.
@@ -109,6 +98,19 @@ class Omh_Predictor:
         table = AsciiTable(table_data)
         print(table.table)
 
+    def train(self, tolerance=10 ** (-3)):
+        """Train the optimal margin hyperplane predictor.
+
+        Parameters
+        ----------
+        tolerance : float
+            The numerical tolerance."""
+
+        self._setup_trained_parameters()
+        self.tol = tolerance
+
+        self._perform_training_iterations()
+
     def _perform_training_iterations(self):
         made_positive_progress = False
         examine_all_i = True
@@ -126,13 +128,6 @@ class Omh_Predictor:
                 if is_progress_positive: made_positive_progress = True
 
         return made_positive_progress
-
-    @staticmethod
-    def _range_with_random_start(length):
-        i = np.random.randint(0, length)
-        for _ in range(length):
-            yield i
-            i = (i + 1) % length
 
     def _check_kkt_fulfilled(self, p):
         indicator = self.y[p] * self._calculate_e(p)
@@ -278,3 +273,10 @@ class Omh_Predictor:
 
     def _calculate_e(self, p):
         return self.predict_raw(self.x[p]) - self.y[p]
+
+    @staticmethod
+    def _range_with_random_start(length):
+        i = np.random.randint(0, length)
+        for _ in range(length):
+            yield i
+            i = (i + 1) % length

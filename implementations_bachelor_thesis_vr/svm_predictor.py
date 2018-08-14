@@ -1,11 +1,7 @@
-import cProfile
-import time
-
 import numpy as np
 
-l = []
 
-class Smh_Predictor:
+class Svm_Predictor:
     def __init__(self, x, y):
         """Initialize the soft margin hyperplane predictor.
 
@@ -21,10 +17,15 @@ class Smh_Predictor:
         self.y = y
 
         self.n, self.m = self.x.shape
-        self._setup_trained_parameters()
 
-        self.tol = 0
-        self.C = 10
+        self.alpha = None
+        self.v = None
+        self.s = None
+        self.e_cache = None
+        self.C = None
+        self.tol = None
+        self.max_iterations = None
+        self.warmup_iterations = None
 
         assert len(self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels" \
                                       "is not the same"
@@ -36,7 +37,6 @@ class Smh_Predictor:
         self.v = np.zeros(self.m)
         self.s = 0
         self.e_cache = np.zeros(self.n)
-        self.e_cache_validation_flags = np.full((self.n,), False)
 
     def predict_raw(self, z):
         """Returns the output of the "inner" decision function, i.e. the decision function without taking the sign.
@@ -65,30 +65,6 @@ class Smh_Predictor:
         Value of z applied to the decision function."""
 
         return np.sign(self.predict_raw(z))
-
-    def train(self, C, tolerance=10 ** (-3)):
-        """Train the optimal margin hyperplane predictor.
-
-        Parameters
-        ---------
-        C : float
-            The constant bounding the alpha values from above. Must be positive.
-        tolerance : float
-            The numerical tolerance."""
-
-        assert C > 0, "Invalid arguments: C must be positive"
-
-        self._setup_trained_parameters()
-        self.tol = tolerance
-        self.C = C
-
-        pr = cProfile.Profile()
-        pr.enable()
-
-        self._perform_training_iterations()
-
-        pr.disable()
-        pr.print_stats(sort="tottime")
 
     def print_diagnostics(self):
         """
@@ -129,70 +105,59 @@ class Smh_Predictor:
         table = AsciiTable(table_data)
         print(table.table)
 
+    def train(self, C, tolerance=10 ** (-3), max_iterations=60, warmup_iterations=10):
+        """Train the optimal margin hyperplane predictor.
+
+        Parameters
+        ---------
+        C : float
+            The constant bounding the alpha values from above. Must be positive.
+        tolerance : float
+            The numerical tolerance.
+        max_iterations : int
+            The total number of iterations after which the algorithm stops if an optimal solution has not been found up
+            to this point. On iteration optimizes each index i at least once.
+        warmup_iterations : int
+            The number of iterations just for warmup at the beginning. During these iterations, the second choice
+            heuristic is not employed, but the indices j are picked randomly until one pick has resulted in
+            positive progress."""
+
+        assert C > 0, "Invalid arguments: C must be positive"
+
+        self._setup_trained_parameters()
+        self.C = C
+        self.tol = tolerance
+        self.max_iterations = max_iterations
+        self.warmup_iterations = warmup_iterations
+
+        self._perform_training_iterations()
+
     def _perform_training_iterations(self):
         made_positive_progress = False
         examine_all_i = True
 
-        outer_count = 0
+        iteration_count = 0
         while made_positive_progress or examine_all_i:
-            outer_count += 1
-            print("======== outer_count:", outer_count)
+            warmup_iteration = (iteration_count < self.warmup_iterations)
+            print("Iteration #" + str(iteration_count) + (" (warmup)" if warmup_iteration else ""))
 
-            made_positive_progress = self._iterate_i(examine_all_i)
+            made_positive_progress = self._iterate_i(examine_all_i, warmup_iteration)
             examine_all_i = (not made_positive_progress) and (not examine_all_i)
 
-            if outer_count >= 2: break
+            iteration_count += 1
+            if iteration_count == self.max_iterations: break
 
-    def _iterate_i(self, examine_all_i):
+    def _iterate_i(self, examine_all_i, warmup_iteration):
         made_positive_progress = False
 
-        i_count = 0
-        start = time.time()
-        call_count = 0
-        positive_progress_count = 0
-        j_heuristic_worked_count = 0
-        global l
-        l = []
         for i in self._range_with_random_start(self.n):
-            i_count += 1
-
-            if i_count % 500 == 0:
-                stop = time.time()
-                avg_iteration_time_j_heuristic = sum(l)/len(l)
-                print("-"*50)
-                print("i_count:", i_count)
-                print("time taken in seconds:", stop - start)
-                print("call_count:", call_count)
-                print("positive_progress_count:", positive_progress_count)
-                print("j_heuristic_worked_count:", j_heuristic_worked_count)
-                print("avg_iteration_time_j_heuristic:", avg_iteration_time_j_heuristic)
-                start = stop
-                call_count = 0
-                positive_progress_count = 0
-                j_heuristic_worked_count = 0
-                l = []
-
             if (examine_all_i or not self._is_at_bounds(self.alpha[i])) and not self._check_kkt_fulfilled(i):
-                call_count += 1
+                is_progress_positive = self._optimize_i(i, warmup_iteration)
 
-                result = self._optimize_i(i)
-                is_progress_positive = (result != 0)
-                j_heuristic_worked = (result == 1)
-
-                if j_heuristic_worked:
-                    j_heuristic_worked_count += 1
                 if is_progress_positive:
                     made_positive_progress = True
-                    positive_progress_count += 1
 
         return made_positive_progress
-
-    @staticmethod
-    def _range_with_random_start(length):
-        i = np.random.randint(0, length)
-        for _ in range(length):
-            yield i
-            i = (i + 1) % length
 
     def _is_at_bounds(self, alpha_value):
         return alpha_value < self.tol or self.C - alpha_value < self.tol
@@ -207,25 +172,23 @@ class Smh_Predictor:
         else:
             return np.abs(indicator) < self.tol
 
-    def _optimize_i(self, i):
-        if self._try_nonbound_j_with_largest_expected_step(i):
-            return 1
+    def _optimize_i(self, i, warmup_iteration):
+        if (not warmup_iteration) and self._try_cached_j_with_largest_expected_step(i):
+            return True
         if self._try_all_j(i, bound_check_must_be=False):
-            return 2
+            return True
         if self._try_all_j(i, bound_check_must_be=True):
-            return 3
+            return True
 
-        return 0
+        return False
 
-    def _try_nonbound_j_with_largest_expected_step(self, i):
+    def _try_cached_j_with_largest_expected_step(self, i):
         e_i = self._calculate_e(i)
         best_j = None
         largest_expected_step = 0
-        count = 0
 
         for j in range(self.n):
-            if not self.e_cache_validation_flags[j]: continue
-            count += 1
+            if self._is_at_bounds(self.alpha[j]): continue
 
             e_j = self._calculate_e(j)
             expected_step = np.abs(e_i - e_j)
@@ -234,8 +197,6 @@ class Smh_Predictor:
                 best_j = j
                 largest_expected_step = expected_step
 
-        global l
-        l.append(count)
         return self._try_optimize_pair(i, best_j)
 
     def _try_all_j(self, i, bound_check_must_be):
@@ -266,16 +227,16 @@ class Smh_Predictor:
         self._update_s(i, j, new_alpha_values)
         self._update_v(i, j, new_alpha_values)
         self._update_alpha(i, j, new_alpha_values)
-        self._update_e_cache(old_v, old_s)
-
-        assert self._check_kkt_fulfilled(i)
-        assert self._check_kkt_fulfilled(j)
+        self._update_e_cache(i, j, old_v, old_s)
 
         return is_progress_positive
 
     def _is_progress_positive(self, i, j, new_alpha_values):
-        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol ** 2 or np.abs(
-            self.alpha[j] - new_alpha_values[1]) > self.tol ** 2
+        # return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol ** 2 or np.abs(
+        #     self.alpha[j] - new_alpha_values[1]) > self.tol ** 2
+
+        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol or np.abs(
+            self.alpha[j] - new_alpha_values[1]) > self.tol
 
     def _update_v(self, i, j, new_alpha_values):
         self.v = self.v - self.y[j] * (new_alpha_values[1] - self.alpha[j]) * (self.x[i] - self.x[j])
@@ -354,24 +315,28 @@ class Smh_Predictor:
 
         return l, r
 
-    def _update_e_cache(self, old_v, old_s):
+    def _update_e_cache(self, i, j, old_v, old_s):
         for p in range(self.n):
-            if not self.e_cache_validation_flags[p]:
-                continue
-
             if self._is_at_bounds(self.alpha[p]):
-                self.e_cache_validation_flags[p] = False
+                continue
+            elif p == i or p == j:
+                self.e_cache[p] = 0
             else:
                 self.e_cache[p] += np.dot(self.x[p], self.v - old_v) + self.s - old_s
-                self.e_cache_validation_flags[p] = True
+
+    def _calculate_e(self, p):
+        if self._is_at_bounds(self.alpha[p]):
+            return self.predict_raw(self.x[p]) - self.y[p]
+        else:
+            return self.e_cache[p]
 
     def _calculate_eta(self, p, q):
         d = self.x[p] - self.x[q]
         return -np.dot(d, d)
 
-    def _calculate_e(self, p):
-        if not self.e_cache_validation_flags[p]:
-            self.e_cache[p] = self.predict_raw(self.x[p]) - self.y[p]
-            self.e_cache_validation_flags[p] = True
-
-        return self.e_cache[p]
+    @staticmethod
+    def _range_with_random_start(length):
+        i = np.random.randint(0, length)
+        for _ in range(length):
+            yield i
+            i = (i + 1) % length

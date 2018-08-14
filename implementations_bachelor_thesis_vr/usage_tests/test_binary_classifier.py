@@ -1,3 +1,5 @@
+import cProfile
+
 import numpy as np
 import pandas as pd
 import implementations_bachelor_thesis_vr.binary_classifier as binary_classifier
@@ -10,7 +12,7 @@ TESTING_INDEX_END = None
 class Tester:
     @staticmethod
     def kernel(x, z):
-        return np.exp(-20*np.dot(x-z, x-z))
+        return np.dot(x, z)
 
     def __init__(self):
         np.set_printoptions(suppress=True)
@@ -42,7 +44,11 @@ class Tester:
         self.__print_test_results(prediction_stats, truth_stats)
 
     def __calculate_classifier(self):
+        pr = cProfile.Profile()
+        pr.enable()
         self.classifier = binary_classifier.make_classifier(self.inputs_train, self.outputs_train, 10, self.kernel)
+        pr.disable()
+        pr.print_stats(sort="tottime")
 
     def __test(self):
         print("Testing...")

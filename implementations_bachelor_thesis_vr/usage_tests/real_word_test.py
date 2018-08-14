@@ -1,6 +1,8 @@
+import cProfile
+
 import numpy as np
 import pandas as pd
-from implementations_bachelor_thesis_vr.smh_predictor import Smh_Predictor
+from implementations_bachelor_thesis_vr.svm_predictor import Svm_Predictor
 from terminaltables import AsciiTable
 import inspect
 
@@ -42,8 +44,13 @@ class Tester:
         self.__print_test_results(prediction_stats, truth_stats)
 
     def __calculate_classifier(self):
-        self.classifier = Smh_Predictor(self.inputs_train, self.outputs_train)
-        self.classifier.train(10)
+        pr = cProfile.Profile()
+        pr.enable()
+        self.classifier = Svm_Predictor(self.inputs_train, self.outputs_train)
+        self.classifier.train(C=10, max_iterations=200, warmup_iterations=0)
+        pr.disable()
+        pr.print_stats(sort="tottime")
+        #self.classifier.print_diagnostics()
 
     def __test(self):
         print("Testing...")
