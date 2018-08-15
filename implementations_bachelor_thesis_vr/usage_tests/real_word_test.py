@@ -17,7 +17,7 @@ TESTING_INDEX_END = None
 class Tester:
     @staticmethod
     def kernel(x, z):
-        return np.exp(-20 * np.dot(x - z, x - z))
+        return np.dot(x, z)
 
     def __init__(self):
         np.set_printoptions(suppress=True)
@@ -52,7 +52,7 @@ class Tester:
         pr = cProfile.Profile()
         pr.enable()
         self.classifier = Svm_Predictor(self.inputs_train, self.outputs_train)
-        self.classifier.train(kernel=self.kernel, C=10, max_iterations=5, warmup_iterations=1)
+        self.classifier.train(kernel=self.kernel, C=10, max_iterations=10, warmup_iterations=1)
         pr.disable()
         pr.print_stats(sort="tottime")
 

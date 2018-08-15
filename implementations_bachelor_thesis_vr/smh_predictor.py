@@ -172,7 +172,7 @@ class Smh_Predictor:
             if eta > -self.tol: continue
 
             e_j = self._calculate_e(j)
-            expected_step = np.abs(e_i - e_j)
+            expected_step = np.abs((e_i - e_j) / eta)
 
             if expected_step >= largest_expected_step:
                 best_j = j

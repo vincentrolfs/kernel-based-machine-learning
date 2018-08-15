@@ -56,7 +56,8 @@ class Svm_Predictor:
         result = self.s
 
         for p in range(self.n):
-            result += self.alpha[p] * self.y[p] * self.kernel(z, self.x[p])
+            if self.alpha[p] > self.tol:
+                result += self.alpha[p] * self.y[p] * self.kernel(z, self.x[p])
 
         return result
 
@@ -206,7 +207,7 @@ class Svm_Predictor:
             if eta > -self.tol: continue
 
             e_j = self._calculate_e(j)
-            expected_step = np.abs(e_i - e_j)
+            expected_step = np.abs((e_i - e_j) / eta)
 
             if expected_step >= largest_expected_step:
                 best_j = j
@@ -274,7 +275,7 @@ class Svm_Predictor:
     def _calculate_new_s_p(self, new_alpha_values, i, j, p):
         e_p = self._calculate_e(p)
         return self.s - e_p + self.y[j] * (new_alpha_values[1] - self.alpha[j]) * (
-                self._calculate_kernel(p, i) - self._calculate_kernel(p, j))
+                self._kernel_optimized(p, i) - self._kernel_optimized(p, j))
 
     def _calculate_delta_p(self, new_alpha_value, p):
         lambda_p = 1 if new_alpha_value < self.tol else -1
@@ -331,35 +332,40 @@ class Svm_Predictor:
             elif p == i or p == j:
                 self.e_cache[p] = 0
             else:
-                self.e_cache[p] += - self.y[j] * (self.alpha[j] - old_alpha_j) * (
-                        self._calculate_kernel(p, i) - self._calculate_kernel(p, j)
+                self.e_cache[p] += self.y[j] * (self.alpha[j] - old_alpha_j) * (
+                        self._kernel_optimized(p, j) - self._kernel_optimized(p, i)
                 ) + self.s - old_s
 
     def _calculate_e(self, p):
         if self._is_at_bounds(self.alpha[p]):
-            result = self.s - self.y[p]
-
-            for q in range(self.n):
-                if self.alpha[q] > self.tol:
-                    result += self.alpha[q] * self.y[q] * self._calculate_kernel(p, q)
-
-            return result
+            return self._predict_raw_optimized(p) - self.y[p]
         else:
             return self.e_cache[p]
 
-    def _calculate_eta(self, p, q):
-        return 2 * self._calculate_kernel(p, q) - self._calculate_kernel(p, p) - self._calculate_kernel(q, q)
+    def _predict_raw_optimized(self, p):
+        result = self.s
 
-    def _calculate_kernel(self, p, q):
+        for q in range(self.n):
+            if self.alpha[q] > self.tol:
+                result += self.alpha[q] * self.y[q] * self._kernel_optimized(p, q)
+
+        return result
+
+    def _calculate_eta(self, p, q):
+        return 2 * self._kernel_optimized(p, q) - self._kernel_optimized(p, p) - self._kernel_optimized(q, q)
+
+    def _kernel_optimized(self, p, q):
         if p > q:
             key = (p, q)
         else:
             key = (q, p)
 
-        if not (key in self.kernel_cache):
-            self.kernel_cache[key] = self.kernel(self.x[p], self.x[q])
+        result = self.kernel_cache.get(key)
 
-        return self.kernel_cache[key]
+        if result is None:
+            result = self.kernel_cache[key] = self.kernel(self.x[p], self.x[q])
+
+        return result
 
     @staticmethod
     def _range_with_random_start(length):
