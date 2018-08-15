@@ -201,7 +201,7 @@ class Smh_Predictor:
 
     def _optimize_pair(self, i, j):
         new_alpha_values = self._calculate_new_alpha_values(i, j)
-        is_progress_positive = self._is_progress_positive(i, j, new_alpha_values)
+        is_progress_positive = self._is_progress_positive(i, new_alpha_values)
 
         self._update_s(i, j, new_alpha_values)
         self._update_v(i, j, new_alpha_values)
@@ -212,9 +212,8 @@ class Smh_Predictor:
 
         return is_progress_positive
 
-    def _is_progress_positive(self, i, j, new_alpha_values):
-        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol ** 2 or np.abs(
-            self.alpha[j] - new_alpha_values[1]) > self.tol ** 2
+    def _is_progress_positive(self, i, new_alpha_values):
+        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol ** 2
 
     def _update_v(self, i, j, new_alpha_values):
         self.v = self.v - self.y[j] * (new_alpha_values[1] - self.alpha[j]) * (self.x[i] - self.x[j])

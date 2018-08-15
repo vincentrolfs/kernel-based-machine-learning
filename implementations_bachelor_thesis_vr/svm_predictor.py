@@ -163,10 +163,10 @@ class Svm_Predictor:
                 if is_progress_positive:
                     made_positive_progress = True
 
-            counter +=1
+            counter += 1
             if counter % 500 == 0:
                 stop = time.time()
-                print((stop-start, counter))
+                print((stop - start, counter))
                 start = time.time()
 
         return made_positive_progress
@@ -202,6 +202,9 @@ class Svm_Predictor:
         for j in range(self.n):
             if self._is_at_bounds(self.alpha[j]): continue
 
+            eta = self._calculate_eta(i, j)
+            if eta > -self.tol: continue
+
             e_j = self._calculate_e(j)
             expected_step = np.abs(e_i - e_j)
 
@@ -216,8 +219,10 @@ class Svm_Predictor:
             bound_check = self._is_at_bounds(self.alpha[j])
 
             if bound_check == bound_check_must_be:
-                is_progress_positive = self._try_optimize_pair(i, j)
-                if is_progress_positive: return True
+                eta = self._calculate_eta(i, j)
+                if eta < -self.tol:
+                    is_progress_positive = self._try_optimize_pair(i, j)
+                    if is_progress_positive: return True
 
         return False
 
@@ -225,15 +230,12 @@ class Svm_Predictor:
         if j is None:
             return False
         else:
-            eta = self._calculate_eta(i, j)
-            if eta > -self.tol: return False
-
-            is_progress_positive = self._optimize_pair(i, j, eta)
+            is_progress_positive = self._optimize_pair(i, j)
             return is_progress_positive
 
-    def _optimize_pair(self, i, j, eta):
-        new_alpha_values = self._calculate_new_alpha_values(i, j, eta)
-        is_progress_positive = self._is_progress_positive(i, j, new_alpha_values)
+    def _optimize_pair(self, i, j):
+        new_alpha_values = self._calculate_new_alpha_values(i, j)
+        is_progress_positive = self._is_progress_positive(i, new_alpha_values)
 
         old_s = self.s
         old_alpha_j = self.alpha[j]
@@ -243,12 +245,8 @@ class Svm_Predictor:
 
         return is_progress_positive
 
-    def _is_progress_positive(self, i, j, new_alpha_values):
-        # return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol ** 2 or np.abs(
-        #     self.alpha[j] - new_alpha_values[1]) > self.tol ** 2
-
-        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol or np.abs(
-            self.alpha[j] - new_alpha_values[1]) > self.tol
+    def _is_progress_positive(self, i, new_alpha_values):
+        return np.abs(self.alpha[i] - new_alpha_values[0]) > self.tol ** 2
 
     def _update_s(self, i, j, new_alpha_values):
         if not self._is_at_bounds(new_alpha_values[0]):
@@ -286,8 +284,8 @@ class Svm_Predictor:
         self.alpha[i] = new_alpha_values[0]
         self.alpha[j] = new_alpha_values[1]
 
-    def _calculate_new_alpha_values(self, i, j, eta):
-        new_alpha_j = self._calculate_new_alpha_j(i, j, eta)
+    def _calculate_new_alpha_values(self, i, j):
+        new_alpha_j = self._calculate_new_alpha_j(i, j)
 
         new_alpha_values = np.empty(2)
         new_alpha_values[0] = self.alpha[i] + self.y[i] * self.y[j] * (self.alpha[j] - new_alpha_j)
@@ -295,7 +293,9 @@ class Svm_Predictor:
 
         return new_alpha_values
 
-    def _calculate_new_alpha_j(self, i, j, eta):
+    def _calculate_new_alpha_j(self, i, j):
+        eta = self._calculate_eta(i, j)
+
         e_i = self._calculate_e(i)
         e_j = self._calculate_e(j)
 
@@ -348,7 +348,7 @@ class Svm_Predictor:
             return self.e_cache[p]
 
     def _calculate_eta(self, p, q):
-        return 2*self._calculate_kernel(p, q) - self._calculate_kernel(p, p) - self._calculate_kernel(q, q)
+        return 2 * self._calculate_kernel(p, q) - self._calculate_kernel(p, p) - self._calculate_kernel(q, q)
 
     def _calculate_kernel(self, p, q):
         if p > q:
