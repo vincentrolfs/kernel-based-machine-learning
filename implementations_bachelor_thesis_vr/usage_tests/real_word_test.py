@@ -1,18 +1,23 @@
 import cProfile
+import inspect
 
 import numpy as np
 import pandas as pd
-from implementations_bachelor_thesis_vr.svm_predictor import Svm_Predictor
 from terminaltables import AsciiTable
-import inspect
+
+from implementations_bachelor_thesis_vr.svm_predictor import Svm_Predictor
 
 TRAINING_INDEX_END = 4000
 TESTING_INDEX_END = None
 
+
+# np.dot(x, z) : C=10, max=50, warmup=1
+# np.exp(-20*np.dot(x-z, x-z)) : C=10, max=5, warmup=1
+
 class Tester:
     @staticmethod
     def kernel(x, z):
-        return np.exp(-20*np.dot(x-z, x-z))
+        return np.exp(-20 * np.dot(x - z, x - z))
 
     def __init__(self):
         np.set_printoptions(suppress=True)
@@ -25,11 +30,11 @@ class Tester:
         x_data = df.drop('BAD', axis=1).values
         y_data = df['BAD'].values
 
-        self.inputs_train = x_data[ : TRAINING_INDEX_END, ]
-        self.outputs_train = y_data[ : TRAINING_INDEX_END, ]
+        self.inputs_train = x_data[: TRAINING_INDEX_END, ]
+        self.outputs_train = y_data[: TRAINING_INDEX_END, ]
 
-        self.inputs_test = x_data[TRAINING_INDEX_END : TESTING_INDEX_END, ]
-        self.outputs_test = y_data[TRAINING_INDEX_END : TESTING_INDEX_END, ]
+        self.inputs_test = x_data[TRAINING_INDEX_END: TESTING_INDEX_END, ]
+        self.outputs_test = y_data[TRAINING_INDEX_END: TESTING_INDEX_END, ]
 
     def print_parameters(self):
         print("Kernel:")
@@ -47,10 +52,9 @@ class Tester:
         pr = cProfile.Profile()
         pr.enable()
         self.classifier = Svm_Predictor(self.inputs_train, self.outputs_train)
-        self.classifier.train(kernel=self.kernel, C=10, max_iterations=5, warmup_iterations=0)
+        self.classifier.train(kernel=self.kernel, C=10, max_iterations=5, warmup_iterations=1)
         pr.disable()
         pr.print_stats(sort="tottime")
-        self.classifier.print_diagnostics()
 
     def __test(self):
         print("Testing...")
@@ -62,8 +66,8 @@ class Tester:
         truth_stats = [[i, 0, 0, 0] for i in range(2)]
 
         for i in range(len(self.inputs_test)):
-            prediction = int(0.5*self.classifier.predict_label(self.inputs_test[i]) + 0.5)
-            truth = int(0.5*self.outputs_test[i] + 0.5)
+            prediction = int(0.5 * self.classifier.predict_label(self.inputs_test[i]) + 0.5)
+            truth = int(0.5 * self.outputs_test[i] + 0.5)
 
             prediction_stats[prediction][1] += 1
             truth_stats[truth][1] += 1
@@ -85,13 +89,14 @@ class Tester:
 
             for line in stats_list:
                 for i in [2, 3]:
-                    perc = "??" if line[1] == 0 else str(100*line[i]/line[1])
+                    perc = "??" if line[1] == 0 else str(100 * line[i] / line[1])
                     line[i] = str(line[i]) + " (" + perc + "%)"
 
         prediction_table = [["Prediction", "Total guesses", "Correct guesses", "Wrong guesses"]] + prediction_stats
         truth_table = [["True value", "Total amount presented", "Correctly identified", "Misidentified"]] + truth_stats
         print(AsciiTable(prediction_table).table)
         print(AsciiTable(truth_table).table)
+
 
 if __name__ == '__main__':
     T = Tester()

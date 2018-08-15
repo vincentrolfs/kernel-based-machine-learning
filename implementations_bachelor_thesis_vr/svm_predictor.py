@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 
 
@@ -152,12 +154,20 @@ class Svm_Predictor:
     def _iterate_i(self, examine_all_i, warmup_iteration):
         made_positive_progress = False
 
+        start = time.time()
+        counter = 0
         for i in self._range_with_random_start(self.n):
             if (examine_all_i or not self._is_at_bounds(self.alpha[i])) and not self._check_kkt_fulfilled(i):
                 is_progress_positive = self._optimize_i(i, warmup_iteration)
 
                 if is_progress_positive:
                     made_positive_progress = True
+
+            counter +=1
+            if counter % 500 == 0:
+                stop = time.time()
+                print((stop-start, counter))
+                start = time.time()
 
         return made_positive_progress
 
@@ -327,7 +337,13 @@ class Svm_Predictor:
 
     def _calculate_e(self, p):
         if self._is_at_bounds(self.alpha[p]):
-            return self.predict_raw(self.x[p]) - self.y[p]
+            result = self.s - self.y[p]
+
+            for q in range(self.n):
+                if self.alpha[q] > self.tol:
+                    result += self.alpha[q] * self.y[q] * self._calculate_kernel(p, q)
+
+            return result
         else:
             return self.e_cache[p]
 
@@ -336,14 +352,14 @@ class Svm_Predictor:
 
     def _calculate_kernel(self, p, q):
         if p > q:
-            tupel = (p, q)
+            key = (p, q)
         else:
-            tupel = (q, p)
+            key = (q, p)
 
-        if not (tupel in self.kernel_cache):
-            self.kernel_cache[tupel] = self.kernel(self.x[p], self.x[q])
+        if not (key in self.kernel_cache):
+            self.kernel_cache[key] = self.kernel(self.x[p], self.x[q])
 
-        return self.kernel_cache[tupel]
+        return self.kernel_cache[key]
 
     @staticmethod
     def _range_with_random_start(length):
