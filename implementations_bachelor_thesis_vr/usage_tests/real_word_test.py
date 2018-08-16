@@ -52,7 +52,7 @@ class Tester:
         pr = cProfile.Profile()
         pr.enable()
         self.classifier = Svm_Predictor(self.inputs_train, self.outputs_train)
-        self.classifier.train(kernel=self.kernel, C=10, max_iterations=10, warmup_iterations=1)
+        self.classifier.train(kernel=self.kernel, C=10, max_iterations=np.inf, warmup_iterations=1)
         pr.disable()
         pr.print_stats(sort="tottime")
 
