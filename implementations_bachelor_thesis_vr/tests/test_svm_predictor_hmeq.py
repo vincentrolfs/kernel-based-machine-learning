@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from implementations_bachelor_thesis_vr.usage_tests.SVM_Predictor_Tester import SVM_Predictor_Tester
+from implementations_bachelor_thesis_vr.tests.SVM_Predictor_Tester import SVM_Predictor_Tester
 
 TRAINING_INDEX_END = 4000
 TESTING_INDEX_END = None

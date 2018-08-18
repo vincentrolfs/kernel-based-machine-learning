@@ -157,8 +157,8 @@ class SVM_Predictor:
     def _iterate_i(self, examine_all_i, warmup_iteration):
         made_positive_progress = False
 
-        start = time.time()
-        counter = 0
+        # start = time.time()
+        # counter = 0
         for i in self._range_with_random_start(self.n):
             if (examine_all_i or not self._is_at_bounds(self.alpha[i])) and not self._check_kkt_fulfilled(i):
                 is_progress_positive = self._optimize_i(i, warmup_iteration)
@@ -166,12 +166,12 @@ class SVM_Predictor:
                 if is_progress_positive:
                     made_positive_progress = True
 
-            counter += 1
-            if counter % 500 == 0:
-                stop = time.time()
-                print((stop - start, counter))
-                print("Amount nonbound alpha:", len(self.alpha) - self.amount_of_bound_alpha_values)
-                start = time.time()
+            # counter += 1
+            # if counter % 500 == 0:
+            #     stop = time.time()
+            #     print((stop - start, counter))
+            #     print("Amount nonbound alpha:", len(self.alpha) - self.amount_of_bound_alpha_values)
+            #     start = time.time()
 
         return made_positive_progress
 
