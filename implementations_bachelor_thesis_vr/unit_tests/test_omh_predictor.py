@@ -1,12 +1,12 @@
 import unittest
 import numpy as np
-from implementations_bachelor_thesis_vr.omh_predictor import Omh_Predictor
+from implementations_bachelor_thesis_vr.OMH_Predictor import OMH_Predictor
 
 class TestStringMethods(unittest.TestCase):
     def test_calculate_eta_test1(self):
         x = np.array([[1, 2, 3, 4], [-7, 2, 4, 1]])
         y = np.array([1, -1])
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
 
         expected_eta = 2*np.dot(x[0], x[1]) - np.dot(x[0], x[0]) - np.dot(x[1], x[1])
@@ -17,7 +17,7 @@ class TestStringMethods(unittest.TestCase):
         x = np.array([[2.5, 4], [3.5, 0]])
         y = np.array([1, -1])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
 
         expected_eta = -17
@@ -28,7 +28,7 @@ class TestStringMethods(unittest.TestCase):
         x = np.array([[2.5, 4. ], [2.5, 2.5]])
         y = np.array([1, 1])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
 
         expected_eta = -2.25
@@ -41,7 +41,7 @@ class TestStringMethods(unittest.TestCase):
         v = np.array([-1, 5, 7, 3])
         s = 9
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -56,7 +56,7 @@ class TestStringMethods(unittest.TestCase):
         v = np.array([0.172, 1.276])
         s = -2.619
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -75,7 +75,7 @@ class TestStringMethods(unittest.TestCase):
         v = np.array([-0.83470769, 1.61156923])
         s = -0.9421538461538466
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -95,7 +95,7 @@ class TestStringMethods(unittest.TestCase):
         s = 4
         alpha = np.array([7, 4])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -116,7 +116,7 @@ class TestStringMethods(unittest.TestCase):
         s = -2.619
         alpha = np.array([0, 0])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -133,7 +133,7 @@ class TestStringMethods(unittest.TestCase):
         s = -0.9421538461538466
         alpha = np.array([0.11815385, 0.62350769])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -150,7 +150,7 @@ class TestStringMethods(unittest.TestCase):
         s = 4
         alpha = np.array([7, 4])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -174,7 +174,7 @@ class TestStringMethods(unittest.TestCase):
         s = -2.619
         alpha = np.array([0, 0])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -191,7 +191,7 @@ class TestStringMethods(unittest.TestCase):
         s = -0.9421538461538466
         alpha = np.array([0.11815385, 0.62350769])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -208,7 +208,7 @@ class TestStringMethods(unittest.TestCase):
         s = 5
         alpha = np.array([4, 7])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s
@@ -229,7 +229,7 @@ class TestStringMethods(unittest.TestCase):
         s = -0.9421538461538466
         alpha = np.array([0.11815385, 0.62350769])
 
-        predictor = Omh_Predictor(x, y)
+        predictor = OMH_Predictor(x, y)
         predictor.tol = 10**(-3)
         predictor.v = v
         predictor.s = s

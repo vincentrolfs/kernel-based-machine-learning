@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 
-class Svm_Predictor:
+class SVM_Predictor:
     def __init__(self, x, y):
         """Initialize the soft margin hyperplane predictor.
 
@@ -29,6 +29,7 @@ class Svm_Predictor:
         self.tol = None
         self.max_iterations = None
         self.warmup_iterations = None
+        self.amount_of_bound_alpha_values = None
 
         assert len(self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels" \
                                       "is not the same"
@@ -40,6 +41,7 @@ class Svm_Predictor:
         self.s = 0
         self.e_cache = np.zeros(self.n)
         self.kernel_cache = {}
+        self.amount_of_bound_alpha_values = len(self.alpha)
 
     def predict_raw(self, z):
         """Returns the output of the "inner" decision function, i.e. the decision function without taking the sign.
@@ -100,14 +102,14 @@ class Svm_Predictor:
         print("Computed values:")
         print("  s =", self.s)
         print("  alpha =", self.alpha)
-        print("Check 1: This should be zero (within tolerance):")
+        print("Check: This should be zero (within tolerance):")
         print("  sum_p of alpha_p y_p =", sum_0)
         print("  Check", "passed!" if np.abs(sum_0) < self.tol else "failed!")
 
         table = AsciiTable(table_data)
         print(table.table)
 
-    def train(self, kernel, C, tolerance=10 ** (-3), max_iterations=60, warmup_iterations=10):
+    def train(self, kernel, C, tolerance=10 ** (-3), max_iterations=100, warmup_iterations=2):
         """Train the optimal margin hyperplane predictor.
 
         Parameters
@@ -118,10 +120,10 @@ class Svm_Predictor:
             The constant bounding the alpha values from above. Must be positive.
         tolerance : float
             The numerical tolerance.
-        max_iterations : int
+        max_iterations : int or infinity
             The total number of iterations after which the algorithm stops if an optimal solution has not been found up
             to this point. On iteration optimizes each index i at least once.
-        warmup_iterations : int
+        warmup_iterations : int or infinity
             The number of iterations just for warmup at the beginning. During these iterations, the second choice
             heuristic is not employed, but the indices j are picked randomly until one pick has resulted in
             positive progress."""
@@ -168,6 +170,7 @@ class Svm_Predictor:
             if counter % 500 == 0:
                 stop = time.time()
                 print((stop - start, counter))
+                print("Amount nonbound alpha:", len(self.alpha) - self.amount_of_bound_alpha_values)
                 start = time.time()
 
         return made_positive_progress
@@ -282,6 +285,10 @@ class Svm_Predictor:
         return self.y[p] * lambda_p
 
     def _update_alpha(self, i, j, new_alpha_values):
+        self.amount_of_bound_alpha_values += int(self._is_at_bounds(new_alpha_values[0])) + int(
+            self._is_at_bounds(new_alpha_values[1])) - int(self._is_at_bounds(self.alpha[i])) - int(
+            self._is_at_bounds(self.alpha[j]))
+
         self.alpha[i] = new_alpha_values[0]
         self.alpha[j] = new_alpha_values[1]
 
@@ -355,7 +362,7 @@ class Svm_Predictor:
         return 2 * self._kernel_optimized(p, q) - self._kernel_optimized(p, p) - self._kernel_optimized(q, q)
 
     def _kernel_optimized(self, p, q):
-        if p > q:
+        if p >= q:
             key = (p, q)
         else:
             key = (q, p)

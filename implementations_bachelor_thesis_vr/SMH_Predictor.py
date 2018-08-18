@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class Smh_Predictor:
+class SMH_Predictor:
     def __init__(self, x, y):
         """Initialize the soft margin hyperplane predictor.
 

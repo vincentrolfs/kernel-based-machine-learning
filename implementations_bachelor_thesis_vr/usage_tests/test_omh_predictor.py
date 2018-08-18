@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from implementations_bachelor_thesis_vr.omh_predictor import Omh_Predictor
+from implementations_bachelor_thesis_vr.OMH_Predictor import OMH_Predictor
 
 
 def plot_inputs(ax, inputs, style):
@@ -27,7 +27,7 @@ green_inputs = np.array([
 all_inputs = np.concatenate((red_inputs, green_inputs))
 labels = np.array([1 for _ in red_inputs] + [-1 for _ in green_inputs])
 
-predictor = Omh_Predictor(all_inputs, labels)
+predictor = OMH_Predictor(all_inputs, labels)
 predictor.train(tolerance=10 ** (-5))
 predictor.print_diagnostics()
 

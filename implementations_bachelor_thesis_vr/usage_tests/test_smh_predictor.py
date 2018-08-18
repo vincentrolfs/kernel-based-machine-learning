@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from implementations_bachelor_thesis_vr.smh_predictor import Smh_Predictor
+from implementations_bachelor_thesis_vr.SMH_Predictor import SMH_Predictor
 
 np.set_printoptions(suppress=True)
 
@@ -31,7 +31,7 @@ green_inputs = np.array([
 all_inputs = np.concatenate((red_inputs, green_inputs))
 labels = np.array([1 for _ in red_inputs] + [-1 for _ in green_inputs])
 
-predictor = Smh_Predictor(all_inputs, labels)
+predictor = SMH_Predictor(all_inputs, labels)
 predictor.train(C=10, tolerance=10 ** (-5))
 predictor.print_diagnostics()
 

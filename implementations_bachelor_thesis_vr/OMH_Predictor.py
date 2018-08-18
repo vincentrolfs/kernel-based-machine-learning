@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class Omh_Predictor:
+class OMH_Predictor:
     def __init__(self, x, y):
         """Initialize the optimal margin hyperplane predictor.
 
