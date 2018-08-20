@@ -3,11 +3,9 @@ import pandas as pd
 
 from implementations_bachelor_thesis_vr.tests.SVM_Predictor_Tester import SVM_Predictor_Tester
 
-TRAINING_INDEX_END = 4000
-TESTING_INDEX_END = None
 C = 10
 MAX_ITERATIONS = 10
-WARMUP_ITERATIONS = 5
+WARMUP_ITERATIONS = 2
 
 
 # np.dot(x, z) : C=10, max=50, warmup=1
@@ -17,24 +15,21 @@ def kernel(x, z):
 
 
 def read_data():
-    df = pd.read_csv('datasets/hmeq/hmeq_prepared.csv').sample(frac=1)
+    data = {}
+    for data_type in ['train', 'test']:
+        df = pd.read_csv('datasets/hmeq/hmeq_' + data_type + '.csv')
 
-    x_data = df.drop('BAD', axis=1).values
-    y_data = df['BAD'].values
+        data[data_type] = {
+            'x': df.drop('GOOD', axis=1).values,
+            'y': df['GOOD'].values
+        }
 
-    inputs_train = x_data[: TRAINING_INDEX_END, ]
-    outputs_train = y_data[: TRAINING_INDEX_END, ]
-
-    inputs_test = x_data[TRAINING_INDEX_END: TESTING_INDEX_END, ]
-    outputs_test = y_data[TRAINING_INDEX_END: TESTING_INDEX_END, ]
-
-    return inputs_train, outputs_train, inputs_test, outputs_test
+    return data
 
 
 if __name__ == '__main__':
-    inputs_train, outputs_train, inputs_test, outputs_test = read_data()
-    T = SVM_Predictor_Tester(inputs_train, outputs_train, inputs_test, outputs_test, kernel, C=C,
-                             max_iterations=MAX_ITERATIONS,
-                             warmup_iterations=WARMUP_ITERATIONS)
+    data = read_data()
+    T = SVM_Predictor_Tester(data['train']['x'], data['train']['y'], data['test']['x'], data['test']['y'], kernel, C,
+                             MAX_ITERATIONS, WARMUP_ITERATIONS, label_names={1: 'GOOD', -1: 'BAD'})
     T.print_parameters()
     T.run()
