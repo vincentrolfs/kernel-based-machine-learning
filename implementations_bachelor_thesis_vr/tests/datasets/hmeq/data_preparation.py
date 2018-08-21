@@ -24,7 +24,7 @@ df_temp = pd.get_dummies(df_original)
 print('>> The same data points with dummies:')
 print(df_temp.iloc[[27, 200, 1230]])
 
-print('>> Creating training,validation and test set...')
+print('>> Creating training, validation and test set...')
 df_temp = df_temp.sample(frac=1)
 cutoff_train = int(TRAINING_SET_FRACTION * len(df_temp))
 cutoff_validation = int((TRAINING_SET_FRACTION + VALIDATION_SET_FRACTION) * len(df_temp))
@@ -48,7 +48,7 @@ df_test = -1 + 2 * ((df_test - m) / (M - m))
 
 print('>> Saving...')
 df_train.to_csv('hmeq_train.csv', index=False)
-df_train.to_csv('hmeq_validation.csv', index=False)
+df_validation.to_csv('hmeq_validation.csv', index=False)
 df_test.to_csv('hmeq_test.csv', index=False)
 
 print('>> Done.')

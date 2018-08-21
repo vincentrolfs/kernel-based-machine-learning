@@ -59,7 +59,12 @@ class OMH_Predictor:
         ----------
         Value of z applied to the decision function."""
 
-        return np.sign(self.predict_raw(z))
+        inner_value = self.predict_raw(z)
+
+        if inner_value >= 0:
+            return 1.0
+        else:
+            return -1.0
 
     def print_diagnostics(self):
         """

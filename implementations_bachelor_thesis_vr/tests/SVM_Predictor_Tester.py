@@ -45,6 +45,7 @@ class SVM_Predictor_Tester:
             truth = y_test[i]
             prediction_data[truth][prediction] += 1
 
+        print('Hi', prediction_data)
         print('>> Test results:')
         self._print_test_results(prediction_data, label_names)
 
