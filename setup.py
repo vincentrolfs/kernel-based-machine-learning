@@ -9,8 +9,8 @@ setup(name='implementations_bachelor_thesis_vr',
       packages=['implementations_bachelor_thesis_vr'],
       install_requires=[
           'numpy',
-          'cvxopt',
           'terminaltables',
-          'matplotlib'
+          'matplotlib',
+          'pandas'
       ],
       zip_safe=False)
