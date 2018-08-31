@@ -77,7 +77,7 @@ class SMH_Predictor:
 
         sum_v = 0
         sum_0 = 0
-        table_data = [["p", "alpha_p", "y_p(<x_p, v> + s)", "0 <= alpha_p <= C (within tolerance)?",
+        table_data = [["p", "alpha_p", "y_p(<x_p, v> + s)", "0 <= alpha_p <= mu (within tolerance)?",
                        "KKT-conditions fulfilled (within tolerance)?"]]
 
         for p in range(self.n):
@@ -89,7 +89,7 @@ class SMH_Predictor:
                  self._check_kkt_fulfilled(p)])
 
         print("Parameters:")
-        print("  C =", self.C)
+        print("  mu =", self.C)
         print("  tolerance =", self.tol)
         print("Computed values:")
         print("  v =", self.v)
@@ -116,7 +116,7 @@ class SMH_Predictor:
         tolerance : float
             The numerical tolerance."""
 
-        assert C > 0, "Invalid arguments: C must be positive"
+        assert C > 0, "Invalid arguments: mu must be positive"
 
         self._setup_trained_parameters()
         self.tol = tolerance

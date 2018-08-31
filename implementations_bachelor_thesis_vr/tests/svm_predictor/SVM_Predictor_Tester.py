@@ -16,20 +16,23 @@ class SVM_Predictor_Tester:
         np.set_printoptions(threshold=np.nan)
 
     def calculate_predictor(self, x_train, y_train, kernel, C, max_iterations, warmup_iterations):
-        print('>> Amount of training examples:', len(x_train))
         print('>> Kernel:')
         print(inspect.getsource(kernel))
         print('>> C =', C)
         print('>> Max Iterations:', max_iterations)
         print('>> Warmup Iterations:', warmup_iterations)
+        print('>> Amount of training examples:', len(x_train))
         print('>> Training...')
 
         start = time.time()
         self.predictor = SVM_Predictor(x_train, y_train)
-        self.predictor.train(kernel, C, max_iterations, warmup_iterations)
+        self.predictor.train(kernel, C, max_iterations=max_iterations, warmup_iterations=warmup_iterations)
         stop = time.time()
+        training_time = stop - start
 
-        print('>> Training completed. Duration:', stop - start, 'seconds.')
+        print('>> Training completed. Duration:', training_time, 'seconds.')
+
+        return training_time
 
     def perform_test(self, x_test, y_test, label_names=None):
         if label_names is None:
@@ -45,12 +48,11 @@ class SVM_Predictor_Tester:
             truth = y_test[i]
             prediction_data[truth][prediction] += 1
 
-        print('Hi', prediction_data)
         print('>> Test results:')
-        self._print_test_results(prediction_data, label_names)
+        return self._process_test_results(prediction_data, label_names)
 
     @staticmethod
-    def _print_test_results(prediction_data, label_names):
+    def _process_test_results(prediction_data, label_names):
         table_heading = ['Truth \ Prediction', label_names[1], label_names[-1], 'Total']
         table_data = [table_heading]
 
@@ -70,10 +72,10 @@ class SVM_Predictor_Tester:
 
         print(table)
 
-        sensitivity = 100 * table_data[1][1] / table_data[1][3] if table_data[1][3] != 0 else '??'
-        specificity = 100 * table_data[2][2] / table_data[2][3] if table_data[2][3] != 0 else '??'
-        ppv = 100 * table_data[1][1] / table_data[3][1] if table_data[3][1] != 0 else '??'
-        npv = 100 * table_data[2][2] / table_data[3][2] if table_data[3][2] != 0 else '??'
+        sensitivity = 100 * table_data[1][1] / table_data[1][3] if table_data[1][3] != 0 else 0
+        specificity = 100 * table_data[2][2] / table_data[2][3] if table_data[2][3] != 0 else 0
+        ppv = 100 * table_data[1][1] / table_data[3][1] if table_data[3][1] != 0 else 0
+        npv = 100 * table_data[2][2] / table_data[3][2] if table_data[3][2] != 0 else 0
 
         print('>> Sensitivity (probability that "' + label_names[1] + '" value is identified correctly):',
               sensitivity, '%')
@@ -83,7 +85,6 @@ class SVM_Predictor_Tester:
               ppv, '%')
         print('>> Negative predictive value (probability that a prediction of "' + label_names[-1] + '" is correct):',
               npv, '%')
-        print()
 
         accuracy = 100 * (table_data[1][1] + table_data[2][2]) / table_data[3][3]
         mcc_numerator = table_data[1][1] * table_data[2][2] - table_data[1][2] * table_data[2][1]
@@ -93,3 +94,5 @@ class SVM_Predictor_Tester:
 
         print('>> Accuracy:', accuracy, '%')
         print('>> Matthews correlation coefficient:', mcc)
+
+        return sensitivity, specificity, ppv, npv, accuracy, mcc
