@@ -3,12 +3,13 @@ import pandas as pd
 
 from implementations_bachelor_thesis_vr.tests.svm_predictor.SVM_Predictor_Tester import SVM_Predictor_Tester
 
-MAX_ITERATIONS = 10
-C_values = [5, 6, 7, 13, 14, 15]
+C = 14
+max_iterations = [1, 5, 10, 15, 20, 30, 50, 100, 200, 400]
 
 
 def kernel(x, z):
-    return np.exp(-12.5 * np.dot(x - z, x - z))
+    a = x - z
+    return np.exp(-12.5 * np.dot(a, a))
 
 
 def read_datasets():
@@ -28,17 +29,18 @@ def read_datasets():
 datasets = read_datasets()
 all_validation_results = []
 
-for i in range(len(C_values)):
-    print('-' * 70, 'C = ', C_values[i])
+for i in range(len(max_iterations)):
+    print('-' * 70, 'max_iterations = ', max_iterations[i])
     all_validation_results.append([])
 
     for j in [1, 2, 3]:
         print('-' * 55, 'Try #', j)
         Tester = SVM_Predictor_Tester()
-        Tester.calculate_predictor(datasets['train']['x'], datasets['train']['y'], kernel, C_values[i],
-                                   MAX_ITERATIONS)
-        one_result = Tester.perform_test(datasets['validation']['x'], datasets['validation']['y'],
-                                         label_names={1: 'GOOD', -1: 'BAD'})
+        training_time = Tester.calculate_predictor(datasets['train']['x'], datasets['train']['y'], kernel, C,
+                                                   max_iterations[i])
+        validation_result = Tester.perform_test(datasets['validation']['x'], datasets['validation']['y'],
+                                                label_names={1: 'GOOD', -1: 'BAD'})
+        one_result = [training_time] + list(validation_result)
 
         all_validation_results[i].append(one_result)
 
@@ -50,7 +52,7 @@ for kernel_results in all_validation_results:
 print('=' * 80)
 print('=' * 80)
 
-print('Averages (sensitivity, specificity, ppv, npv, accuracy, Matthew\'s coefficient):')
+print('Averages (training time, sensitivity, specificity, ppv, npv, accuracy, Matthew\'s coefficient):')
 for i in range(len(averages)):
     averages[i] = list(map(lambda x: "{0:.3f}".format(x), averages[i]))
     print('#', i, ':', ', '.join(averages[i]))

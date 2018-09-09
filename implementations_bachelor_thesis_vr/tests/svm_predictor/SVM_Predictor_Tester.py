@@ -7,7 +7,6 @@ from terminaltables import AsciiTable
 
 from implementations_bachelor_thesis_vr.SVM_Predictor import SVM_Predictor
 
-
 class SVM_Predictor_Tester:
     def __init__(self):
         self.predictor = None
@@ -15,18 +14,17 @@ class SVM_Predictor_Tester:
         np.set_printoptions(suppress=True)
         np.set_printoptions(threshold=np.nan)
 
-    def calculate_predictor(self, x_train, y_train, kernel, C, max_iterations, warmup_iterations):
+    def calculate_predictor(self, x_train, y_train, kernel, C, max_iterations):
         print('>> Kernel:')
         print(inspect.getsource(kernel))
         print('>> C =', C)
         print('>> Max Iterations:', max_iterations)
-        print('>> Warmup Iterations:', warmup_iterations)
         print('>> Amount of training examples:', len(x_train))
         print('>> Training...')
 
         start = time.time()
         self.predictor = SVM_Predictor(x_train, y_train)
-        self.predictor.train(kernel, C, max_iterations=max_iterations, warmup_iterations=warmup_iterations)
+        self.predictor.train(kernel, C, max_iterations=max_iterations)
         stop = time.time()
         training_time = stop - start
 

@@ -11,6 +11,7 @@ setup(name='implementations_bachelor_thesis_vr',
           'numpy',
           'terminaltables',
           'matplotlib',
-          'pandas'
+          'pandas',
+          'scipy'
       ],
       zip_safe=False)

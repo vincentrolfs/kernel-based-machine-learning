@@ -1,5 +1,3 @@
-import time
-
 import numpy as np
 
 
@@ -28,7 +26,6 @@ class SVM_Predictor:
         self.C = None
         self.tol = None
         self.max_iterations = None
-        self.warmup_iterations = None
         self.amount_of_bound_alpha_values = None
 
         assert len(self.y) == self.n, "Invalid arguments: Amount of training inputs and amount of labels" \
@@ -107,6 +104,7 @@ class SVM_Predictor:
         print("Computed values:")
         print("  s =", self.s)
         print("  alpha =", self.alpha)
+        print("  amount of bound alpha values =", self.amount_of_bound_alpha_values)
         print("Check: This should be zero (within tolerance):")
         print("  sum_p of alpha_p y_p =", sum_0)
         print("  Check", "passed!" if np.abs(sum_0) < self.tol else "failed!")
@@ -114,7 +112,7 @@ class SVM_Predictor:
         table = AsciiTable(table_data)
         print(table.table)
 
-    def train(self, kernel, C, tolerance=10 ** (-3), max_iterations=100, warmup_iterations=2):
+    def train(self, kernel, C, tolerance=10 ** (-3), max_iterations=100):
         """Train the optimal margin hyperplane predictor.
 
         Parameters
@@ -127,11 +125,7 @@ class SVM_Predictor:
             The numerical tolerance.
         max_iterations : int or infinity
             The total number of iterations after which the algorithm stops if an optimal solution has not been found up
-            to this point. On iteration optimizes each index i at least once.
-        warmup_iterations : int or infinity
-            The number of iterations just for warmup at the beginning. During these iterations, the second choice
-            heuristic is not employed, but the indices j are picked randomly until one pick has resulted in
-            positive progress."""
+            to this point. On iteration optimizes each index i at least once."""
 
         assert C > 0, "Invalid arguments: C must be positive"
 
@@ -140,7 +134,6 @@ class SVM_Predictor:
         self.C = C
         self.tol = tolerance
         self.max_iterations = max_iterations
-        self.warmup_iterations = warmup_iterations
 
         self._perform_training_iterations()
 
@@ -150,33 +143,23 @@ class SVM_Predictor:
 
         iteration_count = 0
         while made_positive_progress or examine_all_i:
-            warmup_iteration = (iteration_count < self.warmup_iterations)
-            print("Iteration #" + str(iteration_count) + (" (warmup)" if warmup_iteration else ""))
+            print("Iteration #" + str(iteration_count + 1))
 
-            made_positive_progress = self._iterate_i(examine_all_i, warmup_iteration)
+            made_positive_progress = self._iterate_i(examine_all_i)
             examine_all_i = (not made_positive_progress) and (not examine_all_i)
 
             iteration_count += 1
             if iteration_count == self.max_iterations: break
 
-    def _iterate_i(self, examine_all_i, warmup_iteration):
+    def _iterate_i(self, examine_all_i):
         made_positive_progress = False
 
-        # start = time.time()
-        # counter = 0
         for i in self._range_with_random_start(self.n):
             if (examine_all_i or not self._is_at_bounds(self.alpha[i])) and not self._check_kkt_fulfilled(i):
-                is_progress_positive = self._optimize_i(i, warmup_iteration)
+                is_progress_positive = self._optimize_i(i)
 
                 if is_progress_positive:
                     made_positive_progress = True
-
-            # counter += 1
-            # if counter % 500 == 0:
-            #     stop = time.time()
-            #     print((stop - start, counter))
-            #     print("Amount nonbound alpha:", len(self.alpha) - self.amount_of_bound_alpha_values)
-            #     start = time.time()
 
         return made_positive_progress
 
@@ -193,8 +176,8 @@ class SVM_Predictor:
         else:
             return np.abs(indicator) < self.tol
 
-    def _optimize_i(self, i, warmup_iteration):
-        if (not warmup_iteration) and self._try_cached_j_with_largest_expected_step(i):
+    def _optimize_i(self, i):
+        if self._try_cached_j_with_largest_expected_step(i):
             return True
         if self._try_all_j(i, bound_check_must_be=False):
             return True

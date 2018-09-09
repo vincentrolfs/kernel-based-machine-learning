@@ -5,10 +5,6 @@ VALIDATION_SET_FRACTION = 0.15
 
 df_original = pd.read_csv('abalone_original.csv')
 
-print('>> Replacing Rings with Age:')
-df_original['Rings'] = 1.5 + df_original['Rings']
-df_original.rename(columns={'Rings': 'Age'}, inplace=True)
-
 print('>> Abalone dataset description:')
 print(df_original.describe(include='all').T.sort_values('count'))
 

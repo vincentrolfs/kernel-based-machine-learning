@@ -1,4 +1,5 @@
 implementations_bachelor_thesis_vr/OMH_Predictor.py
+implementations_bachelor_thesis_vr/Regressor.py
 implementations_bachelor_thesis_vr/SMH_Predictor.py
 implementations_bachelor_thesis_vr/SVM_Predictor.py
 implementations_bachelor_thesis_vr/__init__.py

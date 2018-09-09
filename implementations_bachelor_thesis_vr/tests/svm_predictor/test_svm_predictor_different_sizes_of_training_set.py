@@ -3,12 +3,13 @@ import pandas as pd
 
 from implementations_bachelor_thesis_vr.tests.svm_predictor.SVM_Predictor_Tester import SVM_Predictor_Tester
 
-MAX_ITERATIONS = 10
-C_values = [5, 6, 7, 13, 14, 15]
+C = 14
+MAX_ITERATIONS = 5
 
 
 def kernel(x, z):
-    return np.exp(-12.5 * np.dot(x - z, x - z))
+    a = x - z
+    return np.exp(-12.5 * np.dot(a, a))
 
 
 def read_datasets():
@@ -25,22 +26,35 @@ def read_datasets():
     return datasets
 
 
+def shuffle_unison(x, y):
+    assert len(x) == len(y)
+    p = np.random.permutation(len(x))
+    return x[p], y[p]
+
+
 datasets = read_datasets()
 all_validation_results = []
+total_amount_training_data = len(datasets['train']['x'])
 
-for i in range(len(C_values)):
-    print('-' * 70, 'C = ', C_values[i])
-    all_validation_results.append([])
+for training_set_fraction in [0.2, 0.4, 0.6, 0.8, 1]:
+    print('-' * 70, 'training_set_fraction = ', training_set_fraction)
+    selection_size = int(training_set_fraction * total_amount_training_data)
 
-    for j in [1, 2, 3]:
-        print('-' * 55, 'Try #', j)
+    validation_result_group = []
+    all_validation_results.append(validation_result_group)
+
+    for j in range(3):
+        print('-' * 55, 'Try #', j + 1)
+        indices = np.random.choice(total_amount_training_data, selection_size, replace=False)
+        training_set_selection = {'x': datasets['train']['x'][indices],
+                                  'y': datasets['train']['y'][indices]}
+
         Tester = SVM_Predictor_Tester()
-        Tester.calculate_predictor(datasets['train']['x'], datasets['train']['y'], kernel, C_values[i],
-                                   MAX_ITERATIONS)
+        Tester.calculate_predictor(training_set_selection['x'], training_set_selection['y'], kernel, C, MAX_ITERATIONS)
+
         one_result = Tester.perform_test(datasets['validation']['x'], datasets['validation']['y'],
                                          label_names={1: 'GOOD', -1: 'BAD'})
-
-        all_validation_results[i].append(one_result)
+        validation_result_group.append(one_result)
 
 averages = []
 
