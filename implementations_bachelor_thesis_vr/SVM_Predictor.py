@@ -3,7 +3,7 @@ import numpy as np
 
 class SVM_Predictor:
     def __init__(self, x, y):
-        """Initialize the soft margin hyperplane predictor.
+        """Initialize the support vector machine predictor.
 
         Parameters
         ----------
@@ -118,7 +118,7 @@ class SVM_Predictor:
         Parameters
         ---------
         kernel: function
-            The kernel function. Must take two arguments which are arrays of shape (m,) and return a floating point value
+            The kernel function. Must take two arguments which are NumPy arrays of shape (m,) and return a floating point value
         C : float
             The constant bounding the alpha values from above. Must be positive.
         tolerance : float

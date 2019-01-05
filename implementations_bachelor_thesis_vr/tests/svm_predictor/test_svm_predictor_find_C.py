@@ -4,7 +4,7 @@ import pandas as pd
 from implementations_bachelor_thesis_vr.tests.svm_predictor.SVM_Predictor_Tester import SVM_Predictor_Tester
 
 MAX_ITERATIONS = 10
-C_values = [5, 6, 7, 13, 14, 15]
+C_values = [0.5, 1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
 
 
 def kernel(x, z):
